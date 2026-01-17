@@ -1,0 +1,14 @@
+packages:
+  - packages/*
+  - apps/*
+
+ignoredBuiltDependencies:
+  - '@nestjs/core'
+  - '@parcel/watcher'
+  - esbuild
+  - sharp
+  - unrs-resolver
+  - vue-demi
+
+onlyBuiltDependencies:
+  - better-sqlite3

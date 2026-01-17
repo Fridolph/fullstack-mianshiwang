@@ -1,0 +1,10 @@
+{
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 3000,
+  "editor.defaultFormatter": "Nuxtr.nuxtr-vscode",
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.mouseWheelZoom": true,
+  "editor.tabSize": 2
+}
