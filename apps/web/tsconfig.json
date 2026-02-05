@@ -1,0 +1,12 @@
+{
+  // https://nuxt.com/docs/guide/concepts/typescript
+  "extends": [
+    "../../tsconfig.base.json",
+    "./.nuxt/tsconfig.json"
+  ],
+  "compilerOptions": {
+    // 其他配置...
+    "resolveJsonModule": true,
+    "esModuleInterop": true
+  }
+}

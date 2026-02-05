@@ -1,0 +1,19 @@
+{
+  "welcome": "Welcome",
+  "app": {
+    "name": "My Application",
+    "description": "This is an application using Nuxt.js and i18n"
+  },
+  "nav": {
+    "home": "Home",
+    "about": "About Us",
+    "contact": "Contact Us",
+    "nuxt_comp": "Nuxt UI Components",
+    "nuxt_comp_desc": "Nuxt UI Component Library",
+    "demo": "Demo",
+    "demo_desc": "Interactive Demo Showcase",
+    "idea": "Idea",
+    "idea_desc": "Creative Ideas Zone",
+    "nuxt_ui": "Nuxt UI"
+  }
+}

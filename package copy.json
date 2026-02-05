@@ -1,0 +1,77 @@
+{
+  "name": "yithought-fullstack-app",
+  "version": "0.0.1",
+  "private": true,
+  "description": "suan le me",
+  "main": "index.js",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm -r build && changeset publish",
+    "dev:api": "cross-env NODE_ENV=dev pnpm -F api-server run start:dev",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "seed:gua": "node -r dotenv/config ./scripts/seed-gua.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fridolph/yithought-fullstack-app.git"
+  },
+  "author": "fridolph",
+  "bugs": {
+    "url": "https://github.com/Fridolph/yithought-fullstack-app/issues"
+  },
+  "homepage": "https://github.com/Fridolph/yithought-fullstack-app#readme",
+  "pnpm": {
+    "overrides": {
+      "vue": "npm:vue@3.5.22",
+      "better-sqlite3": "^12.5.0"
+    }
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@nx/eslint": "22.3.3",
+    "@nx/eslint-plugin": "22.3.3",
+    "@nx/js": "22.3.3",
+    "@nx/nest": "^22.3.3",
+    "@nx/node": "^22.3.3",
+    "@nx/nuxt": "22.3.3",
+    "@nx/vite": "22.3.3",
+    "@nx/web": "22.3.3",
+    "@swc-node/register": "~1.9.1",
+    "@swc/core": "~1.5.7",
+    "@swc/helpers": "~0.5.11",
+    "@types/node": "^25.0.3",
+    "@typescript-eslint/eslint-plugin": "^7.16.0",
+    "@typescript-eslint/parser": "^7.16.0",
+    "@vitest/coverage-c8": "^0.33.0",
+    "@vitest/coverage-v8": "4.0.18",
+    "@vitest/ui": "^4.0.18",
+    "cross-env": "^10.1.0",
+    "dotenv": "^17.2.3",
+    "eslint": "~8.57.0",
+    "eslint-config-prettier": "^10.0.0",
+    "nuxt": "^4.0.0",
+    "nx": "22.3.3",
+    "tslib": "^2.3.0",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "axios": "^1.6.0",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.0"
+  }
+}

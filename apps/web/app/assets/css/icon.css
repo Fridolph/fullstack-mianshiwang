@@ -1,0 +1,9 @@
+.use-icon {
+  @apply transition-all duration-300 ease-in-out cursor-pointer;
+  &.edit {
+    @apply hover:text-blue-500;
+  }
+  &.remove {
+    @apply hover:text-red-500;
+  }
+}

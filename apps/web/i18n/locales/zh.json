@@ -1,0 +1,19 @@
+{
+  "welcome": "欢迎使用",
+  "app": {
+    "name": "我的应用",
+    "description": "这是一个使用 Nuxt.js 和 i18n 的应用"
+  },
+  "nav": {
+    "home": "首页",
+    "about": "关于我们",
+    "contact": "联系我们",
+    "nuxt_ui": "Nuxt UI",
+    "nuxt_comp": "Nuxt UI",
+    "nuxt_comp_desc": "Nuxt UI 组件库",
+    "demo": "Demo",
+    "demo_desc": "组合式，交互展示 Demo",
+    "idea": "Idea",
+    "idea_desc": "不负责的脑洞，慎入"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "paths": {
+    "@yithought/api-server": ["apps/api-server/src/main.ts"],
+    "@yithought/api-server/*": ["apps/api-server/src/*"],
+  },
+  "compilerOptions": {
+    "composite": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "importHelpers": true,
+    "isolatedModules": true,
+    "lib": ["es2022"],
+    "module": "nodenext",
+    "moduleResolution": "Bundler",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2022",
+    "customConditions": ["yithought-fullstack-app"]
+  }
+}
