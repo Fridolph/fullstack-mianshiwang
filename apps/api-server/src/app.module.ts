@@ -4,16 +4,23 @@ import { MongooseModule } from '@nestjs/mongoose'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { UserModule } from './user/user.module'
-import { InterviewModule } from './interview/interview.module';
-import { SharedService } from './shared/shared.service';
-import { SharedModule } from './shared/shared.module';
-import * as path from 'path'
+import { InterviewModule } from './interview/interview.module'
+import { SharedService } from './shared/shared.service'
+import { SharedModule } from './shared/shared.module'
+import { DatabaseModule } from './database/database.module'
+import { resolve } from 'node:path'
+import { existsSync } from 'node:fs'
+
+// 查找环境文件
+const envFilePath = resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'dev'}`)
+console.log('尝试加载环境文件:', envFilePath)
+console.log('文件存在:', existsSync(envFilePath))
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: path.resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'dev'}`),
+      envFilePath: resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'dev'}`),
       ignoreEnvFile: false,
       expandVariables: true,
     }),
@@ -25,6 +32,7 @@ import * as path from 'path'
       socketTimeoutMS: 45000,
     }),
 
+    DatabaseModule,
     // 导入业务模块
     UserModule,
 

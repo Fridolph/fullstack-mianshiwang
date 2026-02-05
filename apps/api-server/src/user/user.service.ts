@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 
 export interface User {
   id: number
@@ -9,6 +9,13 @@ export interface User {
 
 @Injectable()
 export class UserService {
+  constructor(
+    @Inject('DATABASE_CONNECTION')
+    private readonly dbConfig: any,
+  ) {
+    console.log('数据库配置', this.dbConfig)
+  }
+
   private users: User[] = [
     { id: 1, name: '张三', email: 'zhangsan@example.com', createdAt: new Date('2025-01-01') },
     { id: 2, name: '李四', email: 'lisi@example.com', createdAt: new Date('2026-01-02') },
@@ -54,8 +61,6 @@ export class UserService {
   }
 
   private getNextId(): number {
-    return this.users.length > 0
-      ? Math.max(...this.users.map((user) => user.id)) + 1
-      : 1
+    return this.users.length > 0 ? Math.max(...this.users.map((user) => user.id)) + 1 : 1
   }
 }
