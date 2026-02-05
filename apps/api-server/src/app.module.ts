@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common'
+import { LoggerMiddleware } from './common/logger.middleware'
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { MongooseModule } from '@nestjs/mongoose'
 import { AppController } from './app.controller'
@@ -41,6 +42,10 @@ console.log('文件存在:', existsSync(envFilePath))
     SharedModule,
   ],
   controllers: [AppController],
-  providers: [AppService, SharedService],
+  providers: [LoggerMiddleware, AppService, SharedService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*')
+  }
+}
