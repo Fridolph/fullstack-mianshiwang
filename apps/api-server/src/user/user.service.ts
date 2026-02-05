@@ -1,10 +1,13 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 
 export interface User {
-  id: number
-  name: string
-  email: string
+  id?: number
+  name?: string
+  email?: string
+  password?: string
   createdAt?: Date
+  street?: Record<string, any>
+  tags?: any[]
 }
 
 @Injectable()
@@ -17,9 +20,9 @@ export class UserService {
   }
 
   private users: User[] = [
-    { id: 1, name: '张三', email: 'zhangsan@example.com', createdAt: new Date('2025-01-01') },
-    { id: 2, name: '李四', email: 'lisi@example.com', createdAt: new Date('2026-01-02') },
-    { id: 3, name: '王五', email: 'wangwu@example.com', createdAt: new Date('2027-01-03') },
+    { id: 1, name: '张三', password: '12345678', email: 'zhangsan@example.com', createdAt: new Date('2025-01-01') },
+    { id: 2, name: '李四', password: 'aaaccc12345678', email: 'lisi@example.com', createdAt: new Date('2026-01-02') },
+    { id: 3, name: '王五', password: 'bbbb12345678', email: 'wangwu@example.com', createdAt: new Date('2027-01-03') },
   ]
 
   findAll(): User[] {
@@ -58,9 +61,5 @@ export class UserService {
       throw new NotFoundException(`用户 ID: ${id} 不存在`)
     }
     this.users.splice(index, 1)
-  }
-
-  private getNextId(): number {
-    return this.users.length > 0 ? Math.max(...this.users.map((user) => user.id)) + 1 : 1
   }
 }

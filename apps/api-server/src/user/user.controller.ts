@@ -1,17 +1,7 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  ParseIntPipe,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common'
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, HttpCode, HttpStatus, UsePipes } from '@nestjs/common'
 import { UserService } from './user.service'
 import type { User } from './user.service'
+import { CreateUserDto } from './dto/user.dto'
 
 @Controller('user')
 export class UserController {
@@ -30,15 +20,12 @@ export class UserController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createUserDto: { name: string; email: string }): User {
+  create(@Body() createUserDto: CreateUserDto): User {
     return this.userService.create(createUserDto)
   }
 
   @Put(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateUserDto: { name?: string; email?: string }
-  ): User {
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateUserDto: { name?: string; email?: string }): User {
     return this.userService.update(id, updateUserDto)
   }
 

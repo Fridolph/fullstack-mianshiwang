@@ -22,9 +22,16 @@ async function bootstrap() {
   // 启用全局验证管道
   app.useGlobalPipes(
     new ValidationPipe({
+      // 自动移除 DTO 中没有声明的字段
       whitelist: true,
+      // 有未声明字段就报错
       forbidNonWhitelisted: true,
+      // 自动类型转换
       transform: true,
+      transformOptions: {
+        // 启用隐式转换
+        enableImplicitConversion: true,
+      },
     }),
   )
 

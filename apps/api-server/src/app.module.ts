@@ -1,4 +1,4 @@
-import { LoggerMiddleware } from './middleware/logger.middleware'
+import { LoggerMiddleware } from './common/middlewares/logger.middleware'
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { MongooseModule } from '@nestjs/mongoose'
@@ -12,8 +12,8 @@ import { DatabaseModule } from './database/database.module'
 import { resolve } from 'node:path'
 import { existsSync } from 'node:fs'
 import { APP_INTERCEPTOR } from '@nestjs/core'
-import { ResponseInterceptor } from './interceptors/response.interceptor'
-import { LoggingInterceptor } from './interceptors/logging.interceptor'
+import { ResponseInterceptor } from './common/interceptors/response.interceptor'
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
 
 // 查找环境文件
 const envFilePath = resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'dev'}`)
