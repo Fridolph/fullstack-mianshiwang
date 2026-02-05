@@ -1,4 +1,4 @@
-import { LoggerMiddleware } from './common/logger.middleware'
+import { LoggerMiddleware } from './middleware/logger.middleware'
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { MongooseModule } from '@nestjs/mongoose'
@@ -11,6 +11,9 @@ import { SharedModule } from './shared/shared.module'
 import { DatabaseModule } from './database/database.module'
 import { resolve } from 'node:path'
 import { existsSync } from 'node:fs'
+import { APP_INTERCEPTOR } from '@nestjs/core'
+import { ResponseInterceptor } from './interceptors/response.interceptor'
+import { LoggingInterceptor } from './interceptors/logging.interceptor'
 
 // 查找环境文件
 const envFilePath = resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'dev'}`)
@@ -42,7 +45,19 @@ console.log('文件存在:', existsSync(envFilePath))
     SharedModule,
   ],
   controllers: [AppController],
-  providers: [LoggerMiddleware, AppService, SharedService],
+  providers: [
+    LoggerMiddleware,
+    AppService,
+    SharedService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

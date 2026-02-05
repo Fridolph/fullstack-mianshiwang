@@ -1,5 +1,5 @@
 {
-  "name": "@suanleme/server",
+  "name": "@mianshiwang/server",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/server/src",
   "projectType": "application",
