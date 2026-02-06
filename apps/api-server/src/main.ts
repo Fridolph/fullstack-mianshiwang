@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import { ConfigService } from '@nestjs/config'
 import { ValidationPipe } from '@nestjs/common'
 import * as express from 'express'
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
@@ -47,6 +48,7 @@ async function bootstrap() {
     console.log('全局中间件')
     next()
   })
+  app.useGlobalFilters(new AllExceptionsFilter())
 
   await app.listen(port)
 

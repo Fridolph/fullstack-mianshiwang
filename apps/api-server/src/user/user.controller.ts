@@ -1,12 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, HttpCode, HttpStatus, UsePipes, UseGuards, Request } from '@nestjs/common'
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common'
 import { UserService } from './user.service'
 import type { User } from './user.service'
 import { CreateUserDto } from './dto/user.dto'
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
-import { RolesGuard } from 'src/auth/roles.guard'
+import { Roles, RolesGuard } from 'src/auth/roles.guard'
+import { CommonAuthGuard } from 'src/auth/auth.guard'
+// import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
 
 @Controller('user')
-@UseGuards(JwtAuthGuard) // user 的所有路由都需要验证
+@UseGuards(CommonAuthGuard) // user 的所有路由都需要验证
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
