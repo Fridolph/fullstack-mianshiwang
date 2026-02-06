@@ -4,7 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import { ConfigService } from '@nestjs/config'
 import { ValidationPipe } from '@nestjs/common'
 import * as express from 'express'
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
+import { AllExceptionsFilter } from './common/filters/all.exceptions.filter'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)

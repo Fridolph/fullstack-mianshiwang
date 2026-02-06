@@ -14,13 +14,14 @@ import { existsSync } from 'node:fs'
 import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
-import { AuthGuard } from './auth/auth.guard'
+import { CommonAuthGuard } from './auth/common.auth.guard'
 import { JwtModule } from '@nestjs/jwt'
 import { JwtStrategy } from './auth/jwt.strategy'
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
+import { AllExceptionsFilter } from './common/filters/all.exceptions.filter'
+import { configValidationSchema } from './config/config.schema'
 
 // 查找环境文件
-const envFilePath = resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'dev'}`)
+const envFilePath = resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'development'}`)
 console.log('尝试加载环境文件:', envFilePath)
 console.log('文件存在:', existsSync(envFilePath))
 
@@ -28,9 +29,14 @@ console.log('文件存在:', existsSync(envFilePath))
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'dev'}`),
+      envFilePath,
       ignoreEnvFile: false,
       expandVariables: true,
+      validationSchema: configValidationSchema,
+      validationOptions: {
+        allowUnknown: true,
+        abortEarly: true,
+      },
     }),
 
     // 🔧 临时方案：直接使用硬编码 URI
@@ -68,7 +74,7 @@ console.log('文件存在:', existsSync(envFilePath))
     },
     {
       provide: APP_GUARD,
-      useClass: AuthGuard,
+      useClass: CommonAuthGuard,
     },
     {
       provide: APP_FILTER,

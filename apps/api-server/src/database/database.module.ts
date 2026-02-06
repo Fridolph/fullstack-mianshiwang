@@ -1,26 +1,23 @@
 import { Module } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
+import { ConfigModule, ConfigService } from '@nestjs/config'
+import { DatabaseService } from './database.service'
 
 @Module({
+  imports: [
+    // 确保注入 ConfigService，注： 在 AppModule里ConfigModule设为 global
+    // 这里可不写，写上是为了知道，更清晰
+    ConfigModule,
+  ],
   providers: [
+    DatabaseService,
     {
       provide: 'DATABASE_CONNECTION',
       useFactory: (configService: ConfigService) => {
-        // 添加调试信息，打印所有环境变量
-        // console.log('环境变量 NODE_ENV:', process.env.NODE_ENV)
-        // console.log('MONGODB_URI 环境变量值:', configService.get('MONGODB_URI'))
-        // console.log('DB_NAME 环境变量值:', configService.get('DB_NAME'))
-
         const dbType = configService.get('DB_TYPE', 'mongodb')
         if (dbType === 'mongodb') {
-          // 使用进程环境变量作为备选
-          const mongoUri = configService.get('MONGODB_URI') || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017'
-          const dbName = configService.get('DB_NAME') || process.env.DB_NAME || 'mianshiwang'
-
           return {
             type: 'mongodb',
-            url: mongoUri,
-            database: dbName,
+            url: `${configService.get('MONGODB_URI')}/${configService.get('DB_NAME')}`,
           }
         } else if (dbType === 'postgres') {
           return {
@@ -35,7 +32,11 @@ import { ConfigService } from '@nestjs/config'
       },
       inject: [ConfigService],
     },
+    DatabaseService,
   ],
-  exports: ['DATABASE_CONNECTION'],
+  exports: [
+    'DATABASE_CONNECTION',
+    DatabaseService, // 导出给其他模块使用
+  ],
 })
 export class DatabaseModule {}

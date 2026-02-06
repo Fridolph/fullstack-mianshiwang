@@ -1,15 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 
-export interface User {
-  id?: number
-  name?: string
-  email?: string
-  password?: string
-  createdAt?: Date
-  street?: Record<string, any>
-  tags?: any[]
-}
-
 @Injectable()
 export class UserService {
   constructor(
