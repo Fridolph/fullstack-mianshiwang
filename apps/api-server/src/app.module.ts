@@ -19,9 +19,10 @@ import { JwtModule } from '@nestjs/jwt'
 import { JwtStrategy } from './auth/jwt.strategy'
 import { AllExceptionsFilter } from './common/filters/all.exceptions.filter'
 import { configValidationSchema } from './config/config.schema'
+import { CommonModule } from './common/common.module'
 
 // 查找环境文件
-const envFilePath = resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'development'}`)
+const envFilePath = resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'development'}.local`)
 console.log('尝试加载环境文件:', envFilePath)
 console.log('文件存在:', existsSync(envFilePath))
 
@@ -52,13 +53,13 @@ console.log('文件存在:', existsSync(envFilePath))
       signOptions: { expiresIn: '24h' },
     }),
 
+    CommonModule,
+    SharedModule,
     DatabaseModule,
     // 导入业务模块
     UserModule,
 
     InterviewModule,
-
-    SharedModule,
   ],
 
   controllers: [AppController],
