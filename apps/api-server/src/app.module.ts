@@ -11,9 +11,12 @@ import { SharedModule } from './shared/shared.module'
 import { DatabaseModule } from './database/database.module'
 import { resolve } from 'node:path'
 import { existsSync } from 'node:fs'
-import { APP_INTERCEPTOR } from '@nestjs/core'
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
+import { AuthGuard } from './auth/auth.guard'
+import { JwtModule } from '@nestjs/jwt'
+import { JwtStrategy } from './auth/jwt.strategy'
 
 // 查找环境文件
 const envFilePath = resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'dev'}`)
@@ -36,6 +39,12 @@ console.log('文件存在:', existsSync(envFilePath))
       socketTimeoutMS: 45000,
     }),
 
+    JwtModule.register({
+      // 应该从环境变量读取
+      secret: 'fridolph-secret-key',
+      signOptions: { expiresIn: '24h' },
+    }),
+
     DatabaseModule,
     // 导入业务模块
     UserModule,
@@ -44,11 +53,10 @@ console.log('文件存在:', existsSync(envFilePath))
 
     SharedModule,
   ],
+
   controllers: [AppController],
+
   providers: [
-    LoggerMiddleware,
-    AppService,
-    SharedService,
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
@@ -57,6 +65,14 @@ console.log('文件存在:', existsSync(envFilePath))
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
     },
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
+    JwtStrategy,
+    LoggerMiddleware,
+    AppService,
+    SharedService,
   ],
 })
 export class AppModule implements NestModule {
