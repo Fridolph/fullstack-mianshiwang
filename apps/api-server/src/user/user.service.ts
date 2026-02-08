@@ -1,55 +1,41 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
+import { InjectModel } from '@nestjs/mongoose'
+import { User } from './schema/user.schema'
+import { Model } from 'mongoose'
 
 @Injectable()
 export class UserService {
   constructor(
-    @Inject('DATABASE_CONNECTION')
-    private readonly dbConfig: any,
+    // @Inject('DATABASE_CONNECTION')
+    // private readonly dbConfig: any,
+    @InjectModel(User.name)
+    private userModel: Model<User>,
   ) {
-    console.log('数据库配置', this.dbConfig)
+    // console.log('数据库配置', this.dbConfig)
   }
 
-  private users: User[] = [
-    { id: 1, name: '张三', password: '12345678', email: 'zhangsan@example.com', createdAt: new Date('2025-01-01') },
-    { id: 2, name: '李四', password: 'aaaccc12345678', email: 'lisi@example.com', createdAt: new Date('2026-01-02') },
-    { id: 3, name: '王五', password: 'bbbb12345678', email: 'wangwu@example.com', createdAt: new Date('2027-01-03') },
-  ]
-
-  findAll(): User[] {
-    return this.users
+  async create(createUserDto: any): Promise<User> {
+    const user = new this.userModel(createUserDto)
+    return user.save()
   }
 
-  findOne(id: number): User {
-    const user = this.users.find((user) => user.id === id)
-
-    if (!user) throw new NotFoundException(`用户 ID: ${id} 不存在`)
-
-    return user
+  async findAll(): Promise<User[]> {
+    return this.userModel.find().exec()
   }
 
-  create(user: Omit<User, 'id' | 'createdAt'>): User {
-    const newUser: User = {
-      id: this.users.length + 1,
-      ...user,
-    }
-    this.users.push(newUser)
-    return newUser
+  async findOne(id: number): Promise<User | null> {
+    return this.userModel.findById(id).exec()
   }
 
-  update(id: number, userData: Partial<Omit<User, 'id' | 'createdAt'>>): User {
-    // const index = this.users.findIndex((user) => user.id === id)
-    // 改为下面这样可以复用 findOne 方法中的异常处理逻辑
-    const user = this.findOne(id)
-    Object.assign(user, userData)
-
-    return user
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userModel.findOne({ email }).exec()
   }
 
-  remove(id: number): void {
-    const index = this.users.findIndex((user) => user.id === id)
-    if (index === -1) {
-      throw new NotFoundException(`用户 ID: ${id} 不存在`)
-    }
-    this.users.splice(index, 1)
+  async update(id: string, updateUserDto: any): Promise<User | null> {
+    return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).exec()
+  }
+
+  async delete(id: string): Promise<User | null> {
+    return this.userModel.findByIdAndDelete(id).exec()
   }
 }

@@ -41,7 +41,7 @@ console.log('文件存在:', existsSync(envFilePath))
     }),
 
     // 🔧 临时方案：直接使用硬编码 URI
-    MongooseModule.forRoot('mongodb://127.0.0.1:27017/mianshiwang', {
+    MongooseModule.forRoot('mongodb://127.0.0.1:27017/wwzhidao', {
       // 添加连接选项
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
@@ -73,10 +73,10 @@ console.log('文件存在:', existsSync(envFilePath))
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
     },
-    {
-      provide: APP_GUARD,
-      useClass: CommonAuthGuard,
-    },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: CommonAuthGuard,
+    // },
     {
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
