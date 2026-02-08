@@ -1,49 +1,51 @@
-// import { Type } from 'class-transformer'
-import {
-  // ValidateNested,
-  IsString, IsEmail, IsNotEmpty, MinLength,
-  // IsObject, IsArray
-} from 'class-validator'
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { Document } from 'mongoose'
 
-// class AddressDto {
-//   @IsString({ message: '请输入街道' })
-//   @IsNotEmpty()
-//   street: string
-
-//   @IsString({ message: '请填写城市' })
-//   @IsNotEmpty()
-//   city: string
-// }
-
-export class CreateUserDto {
-  @IsString({ message: '用户名必须是字符串' })
-  @IsNotEmpty({ message: '用户名不能为空' })
-  @MinLength(2, { message: '用户ing至少2个字符' })
+@Schema({ timestamps: true })
+export class User extends Document {
+  @Prop({
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 20,
+  })
   username: string
 
-  @IsEmail({}, { message: '邮箱格式不正确' })
-  @IsNotEmpty({ message: '邮箱不能为空' })
+  @Prop({
+    required: true,
+    unique: true,
+    lowercase: true,
+    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, // 简单的邮箱验证
+  })
   email: string
 
-  @IsString({ message: '密码必须是字符串' })
-  @IsNotEmpty({ message: '密码不能为空' })
-  @MinLength(6, { message: '密码至少6个字符' })
+  @Prop({
+    required: true,
+    minlength: 6,
+  })
   password: string
+
+  @Prop({
+    type: Number,
+    min: 0,
+    max: 150,
+  })
+  age: number
+
+  @Prop({
+    type: String,
+    enum: ['active', 'inactive', 'banned'],
+    default: 'active',
+  })
+  status: string
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  isAdmin: boolean
+
 }
-
-// class TagDto {
-//   @IsString()
-//   name: string
-// }
-
-// export class CreateUserDto {
-//   @ValidateNested()
-//   @Type(() => AddressDto)
-//   @IsObject()
-//   address: AddressDto
-
-//   @IsArray()
-//   @ValidateNested({ each: true })
-//   @Type(() => TagDto)
-//   tags: TagDto[]
-// }
+export const UserSchema = SchemaFactory.createForClass(User)

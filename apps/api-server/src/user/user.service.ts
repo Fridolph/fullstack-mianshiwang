@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { User } from './schema/user.schema'
 import { Model } from 'mongoose'
@@ -15,8 +15,24 @@ export class UserService {
   }
 
   async create(createUserDto: any): Promise<User> {
+    // 这里密码会被自动加密
     const user = new this.userModel(createUserDto)
     return user.save()
+  }
+
+  async validatePassword(email: string, password: string): Promise<User> {
+    const user = await this.userModel.findOne({ email })
+    if (!user) {
+      throw new UnauthorizedException('用户不存在')
+    }
+
+    // 使用我们定义的方法比对密码
+    const isPasswordValid = await user.comparePassword(password)
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('密码错误')
+    }
+
+    return user
   }
 
   async findAll(): Promise<User[]> {
