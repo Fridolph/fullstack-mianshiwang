@@ -2,7 +2,7 @@
   "semi": false,
   "singleQuote": true,
   "trailingComma": "all",
-  "printWidth": 160,
+  "printWidth": 80,
   "useTabs": false,
   "tabWidth": 2,
   "endOfLine": "lf",
@@ -12,5 +12,6 @@
   "jsxSingleQuote": false,
   "jsxBracketSameLine": false,
   "proseWrap": "preserve",
-  "htmlWhitespaceSensitivity": "css"
+  "htmlWhitespaceSensitivity": "css",
+  "arrowParens": "avoid"
 }
