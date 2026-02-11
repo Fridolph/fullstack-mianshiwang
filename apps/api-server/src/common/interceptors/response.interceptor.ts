@@ -11,10 +11,16 @@ export interface ResponseFormat<T = any> {
 }
 
 @Injectable()
-export class ResponseInterceptor<T> implements NestInterceptor<T, ResponseFormat<T>> {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<ResponseFormat<T>> {
+export class ResponseInterceptor<T> implements NestInterceptor<
+  T,
+  ResponseFormat<T>
+> {
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler
+  ): Observable<ResponseFormat<T>> {
     const ctx = context.switchToHttp()
-    // const response = ctx.getResponse()
+    const response = ctx.getResponse()
     const request = ctx.getRequest()
 
     return next.handle().pipe(
@@ -23,7 +29,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ResponseFormat
         if (data === null || data === undefined) {
           return {
             code: HttpStatus.OK,
-            message: 'success',
+            message: '操作成功',
             data: null,
             timestamp: new Date().toISOString(),
             path: request?.url,
@@ -39,9 +45,10 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ResponseFormat
           }
         }
 
+        // 标准成功响应格式
         return {
           code: HttpStatus.OK,
-          message: 'success',
+          message: '操作成功',
           data,
           timestamp: new Date().toISOString(),
           path: request?.url,

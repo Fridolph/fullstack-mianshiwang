@@ -32,8 +32,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message = exception?.message || '服务器内部错误'
       this.logger.error(`未处理异常: ${exception.message}`, exception.stack, 'AllExceptionsFilter')
     }
+
     // 记录错误日志
     this.logger.error(`${request.method} ${request.url} - ${status} - ${message}`)
+
     // 返回统一格式的错误响应
     const errorResponse = {
       code: status,

@@ -2,10 +2,12 @@ import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, HttpCode
 import { UserService } from './user.service'
 import { User } from './schema/user.schema'
 import { User as CreateUserDto } from './dto/user.dto'
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 // import { Roles, RolesGuard } from 'src/auth/roles.guard'
 // import { CommonAuthGuard } from 'src/auth/common.auth.guard'
-// import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
 
+@ApiTags('用户')
 @Controller('user')
 // @UseGuards(CommonAuthGuard) // user 的所有路由都需要验证
 export class UserController {
@@ -42,19 +44,13 @@ export class UserController {
   }
 
   // @Get('info')
-  // getInfo(@Request() req: any) {
-  //   // req.user 包含从 JWT 中解析的用户信息
-  //   return req?.user
-  // }
-
-  // @Get('admin')
-  // @UseGuards(RolesGuard)
-  // @Roles('admin')
-  // getAdminInfo(@Request() req: any) {
-  //   // 只有 admin 角色可以访问
-  //   return {
-  //     message: '管理员信息',
-  //     data: req?.user,
-  //   }
+  // @ApiBearerAuth()
+  // @ApiOperation({
+  //   summary: '获取当前用户信息',
+  //   description: '获取当前登录用户的个人信息',
+  // })
+  // @UseGuards(JwtAuthGuard)
+  // async getUserInfo(@Request() req: any) {
+  //   return this.userService.getUserInfo(req.user.userId)
   // }
 }

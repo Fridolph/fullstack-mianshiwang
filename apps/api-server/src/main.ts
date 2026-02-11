@@ -1,25 +1,15 @@
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
-import { ConfigService } from '@nestjs/config'
 import { ValidationPipe } from '@nestjs/common'
 import * as express from 'express'
-import { AllExceptionsFilter } from './common/filters/all.exceptions.filter'
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
-  const configService = app.get(ConfigService)
+  const port = process.env.APP_INTERCEPTORPORT ?? 6789
 
-  // 获取端口号，提供默认值
-  const port = configService.get<number>('API_PORT', 6789)
-  // const env = configService.get<string>('NODE_ENV', 'dev')
-  // const mongoUri = configService.get<string>('MONGODB_URI')
   app.setGlobalPrefix('api')
-  // 启用 CORS（如果需要）
-  // app.enableCors({
-  //   origin: ['http://localhost:6789'],
-  //   credentials: true,
-  // })
   // 启用全局验证管道
   app.useGlobalPipes(
     new ValidationPipe({
@@ -36,7 +26,19 @@ async function bootstrap() {
     }),
   )
 
-  const config = new DocumentBuilder().setTitle('Mianshiwang API').setDescription('The Mianshiwang API description').setVersion('1.0').build()
+  // 启用CORS
+  app.enableCors()
+
+  const config = new DocumentBuilder()
+    .setTitle('AI 面试系统 API')
+    .setDescription('AI面试系统API文档')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .setContact('Fridolph', 'https://fridolph.top', '249121486@gmail.com')
+    .addServer('http://localhost:6789', 'Development')
+    .addServer('http://localhost:6789', 'Production')
+    .build()
+
   const document = SwaggerModule.createDocument(app, config)
   SwaggerModule.setup('api', app, document)
 
