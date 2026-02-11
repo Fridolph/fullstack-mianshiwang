@@ -1,4 +1,3 @@
-import { UserSchema } from './../dto/user.dto'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
 import bcrypt from 'bcryptjs'
@@ -51,7 +50,7 @@ export class User extends Document {
    * 手机号码 - 目前只供国内用户 没有区号
    */
   @Prop({ required: false })
-  phone: string
+  phone?: string
 
   /**
    * 用户头像，可用 vx 后续让用户可设置

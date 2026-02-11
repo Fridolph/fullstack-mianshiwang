@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { User } from './schema/user.schema'
 import { Model } from 'mongoose'
@@ -9,13 +13,16 @@ export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
   async register(registerDto: RegisterDto) {
+    if (!validateUserParamsComplete(registerDto)) {
+      throw new BadRequestException('注册传参错误或缺失')
+    }
+
     const { username, email, password } = registerDto
 
     // 检查用户名是否存在
     const existingUser = await this.userModel.findOne({
       $or: [{ username }, { email }],
     })
-
     if (existingUser) throw new BadRequestException('用户名或邮箱已存在')
 
     // 校验通过，创建新用户
@@ -35,6 +42,28 @@ export class UserService {
 
     return resultWithoutPassword
   }
+}
+
+function validateUserParamsComplete(registerDto: RegisterDto): boolean {
+  const { phone, username, email, password } = registerDto
+
+  // 手机注册方式：只需要有手机号即可
+  if (phone) {
+    return true // 手机号注册可以不传密码，直接通过校验
+  }
+
+  // 用户名注册方式：必须有用户名和密码
+  if (username && password) {
+    return true
+  }
+
+  // 邮箱注册方式：必须有邮箱和密码
+  if (email && password) {
+    return true
+  }
+
+  // 如果不满足上述任何条件，则参数不完整
+  return false
 }
 
 // @Injectable()

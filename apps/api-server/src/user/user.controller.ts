@@ -2,6 +2,7 @@ import { Body, Controller, Post } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { UserService } from './user.service'
 import { RegisterDto } from './dto/register.dto'
+import { ResponseUtil } from 'src/common/utils/response.util'
 
 @ApiTags('用户')
 @Controller('user')

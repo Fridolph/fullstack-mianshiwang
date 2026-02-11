@@ -5,9 +5,9 @@ import { Injectable } from '@nestjs/common'
 export class InterviewService {
   constructor(private readonly userService: UserService) {}
 
-  createInterview(userId: number, interviewData: any) {
-    const user = this.userService.findOne(userId)
-    if (!user) throw new Error('用户不存在')
-    // ...
-  }
+  // createInterview(userId: number, interviewData: any) {
+  //   const user = this.userService.findOne(userId)
+  //   if (!user) throw new Error('用户不存在')
+  //   // ...
+  // }
 }
