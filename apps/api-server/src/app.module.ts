@@ -24,7 +24,10 @@ import { WechatModule } from './wechat/wechat.module'
 import { AdminModule } from './admin/admin.module'
 import { StsModule } from './sts/sts.module'
 
-const envFilePath = resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'development'}.local`)
+const envFilePath = resolve(
+  process.cwd(),
+  `.env.${process.env.NODE_ENV || 'development'}.local`,
+)
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/wwzhidao'
 
 @Module({
@@ -48,20 +51,20 @@ const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/wwzhidao'
       socketTimeoutMS: 45000,
     }),
 
-    // JwtModule.registerAsync({
-    //   imports: [ConfigModule],
-    //   useFactory: async(configService: ConfigService) => {
-    //     const expirationSeconds = getTokenExpirationSeconds()
-    //     return {
-    //       secret: configService.get<string>('JWT_SECRET' || 'wwzhidao-secret'),
-    //       signOptions: {
-    //         expiresIn: expirationSeconds,
-    //       }
-    //     }
-    //   },
-    //   inject: [ConfigService],
-    //   global: true,
-    // }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        return {
+          secret:
+            configService.get<string>('JWT_SECRET') || 'wwzhidao-secret-key',
+          signOptions: {
+            expiresIn: '3d', // token过期时间 3 天
+          },
+        }
+      },
+      inject: [ConfigService],
+      global: true, // 全局模块，这样任何地方都能用
+    }),
 
     SharedModule,
     DatabaseModule,

@@ -1,34 +1,39 @@
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { User } from './schema/user.schema'
 import { Model } from 'mongoose'
 import { RegisterDto } from './dto/register.dto'
+import { JwtService } from '@nestjs/jwt'
+import { LoginDto } from './dto/login.dto'
+import {
+  checkLoginParamsComplete,
+  checkRegisterParamsComplete,
+  generateRandomUsername,
+} from './utils/validate'
 
 @Injectable()
 export class UserService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    private readonly jwtService: JwtService,
+  ) {}
 
   async register(registerDto: RegisterDto) {
-    if (!validateUserParamsComplete(registerDto)) {
+    if (!checkRegisterParamsComplete(registerDto)) {
       throw new BadRequestException('注册传参错误或缺失')
     }
 
-    const { username, email, password } = registerDto
+    const { email, password } = registerDto
 
     // 检查用户名是否存在
     const existingUser = await this.userModel.findOne({
-      $or: [{ username }, { email }],
+      $or: [{ email }],
     })
-    if (existingUser) throw new BadRequestException('用户名或邮箱已存在')
+    if (existingUser) throw new BadRequestException('该邮箱已注册')
 
-    // 校验通过，创建新用户
-    // 密码加密会在 Schema 的 pre save 钩子里自动进行
+    const randomUsername = generateRandomUsername()
     const newUser = new this.userModel({
-      username,
+      username: randomUsername,
       email,
       password,
     })
@@ -42,28 +47,40 @@ export class UserService {
 
     return resultWithoutPassword
   }
-}
 
-function validateUserParamsComplete(registerDto: RegisterDto): boolean {
-  const { phone, username, email, password } = registerDto
+  async login(loginDto: LoginDto) {
+    if (!checkLoginParamsComplete(loginDto)) {
+      throw new BadRequestException('参数错误，请检查后重试')
+    }
 
-  // 手机注册方式：只需要有手机号即可
-  if (phone) {
-    return true // 手机号注册可以不传密码，直接通过校验
+    const { email, password } = loginDto
+    // 1. 比对用户信息
+    const user = await this.userModel.findOne({ email })
+    if (!user) {
+      throw new UnauthorizedException('邮箱或密码不正确')
+    }
+
+    // 2. 验证密码
+    const isPasswordValid = await user.comparePassword(password)
+    if (!isPasswordValid) throw new UnauthorizedException('邮箱或密码不正确')
+
+    // 3. 生成 Token
+    const token = this.jwtService.sign({
+      userId: user._id.toString(),
+      username: user.username,
+      email: user.email,
+    })
+
+    // 4. 返回 Token 和用户信息
+    const userInfo = user.toObject()
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, ...filterdUserInfo } = userInfo
+
+    return {
+      token,
+      user: filterdUserInfo,
+    }
   }
-
-  // 用户名注册方式：必须有用户名和密码
-  if (username && password) {
-    return true
-  }
-
-  // 邮箱注册方式：必须有邮箱和密码
-  if (email && password) {
-    return true
-  }
-
-  // 如果不满足上述任何条件，则参数不完整
-  return false
 }
 
 // @Injectable()

@@ -201,6 +201,13 @@ export class User extends Document {
 }
 export const UserSchema = SchemaFactory.createForClass(User)
 
+export type UserDocument = User & Document
+
+// 添加比较密码的方法
+UserSchema.methods.comparePassword = async function (candidatePassword: string) {
+  return await bcrypt.compare(candidatePassword, this.password)
+}
+
 // 添加 mongoose 钩子：保存前加密密码
 UserSchema.pre('save', async function () {
   if (!this.isModified('password')) return
@@ -210,11 +217,6 @@ UserSchema.pre('save', async function () {
     this.password = await bcrypt.hash(this.password, salt)
   }
 })
-
-// 添加比较密码的方法
-UserSchema.methods.comparePassword = async function (currentPassword: string) {
-  return await bcrypt.compare(currentPassword, this.password)
-}
 
 // 下面是之前 demo 学习时的，暂时注释了
 
