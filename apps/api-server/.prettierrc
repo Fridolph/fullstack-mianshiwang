@@ -12,6 +12,5 @@
   "jsxSingleQuote": false,
   "jsxBracketSameLine": false,
   "proseWrap": "preserve",
-  "htmlWhitespaceSensitivity": "css",
-  "arrowParens": "avoid"
+  "htmlWhitespaceSensitivity": "css"
 }

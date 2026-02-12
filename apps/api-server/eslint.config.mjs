@@ -34,7 +34,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
       'prettier/prettier': ['off'],
-      'function-paren-newline': ['error', 'multiline'],
+      // 'function-paren-newline': ['error', 'multiline'],
       'function-call-argument-newline': ['error', 'consistent'],
       semi: ['error', 'never'],
       quotes: ['error', 'single'],

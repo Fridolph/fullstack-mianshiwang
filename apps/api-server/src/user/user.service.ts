@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Request,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { User } from './schema/user.schema'
 import { Model } from 'mongoose'
@@ -10,6 +17,7 @@ import {
   checkRegisterParamsComplete,
   generateRandomUsername,
 } from './utils/validate'
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
 
 @Injectable()
 export class UserService {
@@ -18,6 +26,11 @@ export class UserService {
     private readonly jwtService: JwtService,
   ) {}
 
+  /**
+   * 新用户注册
+   * @param registerDto
+   * @returns 当前注册用户信息（过滤掉密码）
+   */
   async register(registerDto: RegisterDto) {
     if (!checkRegisterParamsComplete(registerDto)) {
       throw new BadRequestException('注册传参错误或缺失')
@@ -48,6 +61,11 @@ export class UserService {
     return resultWithoutPassword
   }
 
+  /**
+   * 发起用户登录
+   * @param loginDto
+   * @returns 当前用户信息（过滤密码）+ token 信息
+   */
   async login(loginDto: LoginDto) {
     if (!checkLoginParamsComplete(loginDto)) {
       throw new BadRequestException('参数错误，请检查后重试')
@@ -80,6 +98,22 @@ export class UserService {
       token,
       user: filterdUserInfo,
     }
+  }
+
+  /**
+   * 获取用户信息
+   */
+  async getUserInfo(userId: string) {
+    const user = await this.userModel.findById(userId).lean()
+    // lean 是 mongoose 优化方法，返回 js 对象 而不是 Mongoose Document 对象，查询快，占用内存少
+
+    if (!user) {
+      throw new NotFoundException('该查询用户不存在')
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, ...userFilterPwd } = user
+    return userFilterPwd
   }
 }
 

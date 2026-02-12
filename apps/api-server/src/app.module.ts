@@ -55,10 +55,9 @@ const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/wwzhidao'
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         return {
-          secret:
-            configService.get<string>('JWT_SECRET') || 'wwzhidao-secret-key',
+          secret: configService.get<string>('JWT_SECRET') || 'fridolph',
           signOptions: {
-            expiresIn: '3d', // token过期时间 3 天
+            expiresIn: '7d', // token过期时间 7 天
           },
         }
       },
@@ -88,7 +87,10 @@ const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/wwzhidao'
   providers: [
     LoggerMiddleware,
     AppService,
-    JwtStrategy,
+    {
+      provide: APP_GUARD,
+      useClass: JwtStrategy,
+    },
     SharedService,
     {
       provide: APP_INTERCEPTOR,

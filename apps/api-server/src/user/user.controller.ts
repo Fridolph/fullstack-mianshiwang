@@ -1,25 +1,37 @@
-import { Body, Controller, Post } from '@nestjs/common'
+import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { UserService } from './user.service'
 import { RegisterDto } from './dto/register.dto'
 import { ResponseUtil as ResUtil } from 'src/common/utils/response.util'
 import { LoginDto } from './dto/login.dto'
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
+import { Public } from 'src/auth/public.decorator'
 
 @ApiTags('用户')
 @Controller('user')
+@UseGuards(JwtAuthGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post('register')
+  @Public()
   async register(@Body() registerDto: RegisterDto) {
     const result = await this.userService.register(registerDto)
     return ResUtil.success(result, '注册成功')
   }
 
   @Post('login')
+  @Public()
   async login(@Body() loginDto: LoginDto) {
     const result = await this.userService.login(loginDto)
     return ResUtil.success(result, '登录成功')
+  }
+
+  @Get('info')
+  @UseGuards(JwtAuthGuard) // 使用认证守卫
+  getUserInfo(@Request() req: any) {
+    // req.user 就是从 Token 中提取出来的用户信息
+    return this.userService.getUserInfo(req.user.userId)
   }
 }
 
