@@ -17,7 +17,8 @@ import {
   checkRegisterParamsComplete,
   generateRandomUsername,
 } from './utils/validate'
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
+import { UpdateUserDto } from './dto/update-user.dto'
+// import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
 
 @Injectable()
 export class UserService {
@@ -115,57 +116,96 @@ export class UserService {
     const { password: _, ...userFilterPwd } = user
     return userFilterPwd
   }
+
+  /**
+   * 更新用户信息
+   * @param userId 通过 userId 查询用户
+   * @param updateUserDto 传入修改参数
+   * @returns 过滤掉敏感信息后的完整用户信息
+   */
+  async updateUser(userId: string, updateUserDto: UpdateUserDto) {
+    // 如果更新邮箱，需检查新邮箱是否被使用
+    if (updateUserDto.email) {
+      const existingUser = await this.userModel.findOne({
+        email: updateUserDto.email,
+        _id: { $ne: userId }, // 排除当前用户
+      })
+
+      if (existingUser) {
+        throw new BadRequestException('邮箱已被使用')
+      }
+    }
+
+    const user = await this.userModel
+      .findByIdAndUpdate(userId, updateUserDto, {
+        new: true,
+        runValidators: true,
+      })
+      .select('-password')
+      .lean()
+
+    if (!user) throw new NotFoundException('用户不存在')
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, ...updatedUser } = user
+    return updatedUser
+  }
+
+  /**
+   * 获取用户消费记录
+   * @param userId 用户的唯一标识
+   * @param options 可选查询参数
+   * @returns 返回用户的消费记录和消费统计数据
+   */
+  async getUserConsumptionRecords(
+    userId: string, // 用户ID，用于标识和查询特定用户的消费记录
+    options?: {
+      skip: number // 跳过记录数量
+      limit: number // 每次查询的记录数量
+    },
+  ) {
+    // 如果没有传递查询选项，则默认跳过0条记录，并限制返回20条记录
+    const skip = options?.skip ?? 0
+    const limit = options?.limit ?? 20
+
+    // 查询消费记录，按创建时间降序排列，跳过skip记录，限制返回limit条记录
+    const records = []
+    // const records = await this.consumptionRecordModel
+    //   .find({ userId }) // 根据用户ID查询消费记录
+    //   .sort({ createdAt: -1 }) // 按照创建时间降序排列，最新的记录排在前面
+    //   .skip(skip)
+    //   .limit(limit)
+    //   .lean()
+
+    // 统计用户各类型的消费信息，使用 MongoDB的聚合框架
+    const stats = await this.consumptionRecordModel.aggregate([
+      { $match: { userId } }, // 过滤出属于当前用户的消费记录
+      {
+        $group: {
+          // 按照消费类型进行分组
+          _id: '$type', // 按消费类型进行分组
+          count: { $sum: 1 }, // 统计每种类型的消费记录数量
+          successCount: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'success'] }, 1, 0],
+            },
+          },
+          failedCount: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'failed'] }, 1, 0],
+            },
+          },
+          totalCost: {
+            $sum: '$estimatedCost', // 计算每种类型的消费总额
+          },
+        },
+      },
+    ])
+
+    // 返回查询的消费记录和消费统计信息
+    return {
+      records,
+      stats,
+    }
+  }
 }
-
-// @Injectable()
-// export class UserService {
-//   constructor(
-//     // @Inject('DATABASE_CONNECTION')
-//     // private readonly dbConfig: any,
-//     @InjectModel(User.name)
-//     private userModel: Model<User>,
-//   ) {
-//     // console.log('数据库配置', this.dbConfig)
-//   }
-
-//   async create(createUserDto: any): Promise<User> {
-//     // 这里密码会被自动加密
-//     const user = new this.userModel(createUserDto)
-//     return user.save()
-//   }
-
-//   async validatePassword(email: string, password: string): Promise<User> {
-//     const user = await this.userModel.findOne({ email })
-//     if (!user) {
-//       throw new UnauthorizedException('用户不存在')
-//     }
-
-//     // 使用我们定义的方法比对密码
-//     const isPasswordValid = await user.comparePassword(password)
-//     if (!isPasswordValid) {
-//       throw new UnauthorizedException('密码错误')
-//     }
-
-//     return user
-//   }
-
-//   async findAll(): Promise<User[]> {
-//     return this.userModel.find().exec()
-//   }
-
-//   async findOne(id: number): Promise<User | null> {
-//     return this.userModel.findById(id).exec()
-//   }
-
-//   async findByEmail(email: string): Promise<User | null> {
-//     return this.userModel.findOne({ email }).exec()
-//   }
-
-//   async update(id: string, updateUserDto: any): Promise<User | null> {
-//     return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).exec()
-//   }
-
-//   async delete(id: string): Promise<User | null> {
-//     return this.userModel.findByIdAndDelete(id).exec()
-//   }
-// }

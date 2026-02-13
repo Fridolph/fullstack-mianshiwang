@@ -1,18 +1,37 @@
-import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common'
-import { ApiTags } from '@nestjs/swagger'
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Query,
+  Request,
+  UseGuards,
+} from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { UserService } from './user.service'
 import { RegisterDto } from './dto/register.dto'
-import { ResponseUtil as ResUtil } from 'src/common/utils/response.util'
+import { ResponseUtil, ResponseUtil as ResUtil } from 'src/common/utils/response.util'
 import { LoginDto } from './dto/login.dto'
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
 import { Public } from 'src/auth/public.decorator'
+import { InjectModel } from '@nestjs/mongoose'
+import { User } from './schema/user.schema'
+import { Model } from 'mongoose'
+import { UpdateUserDto } from './dto/update-user.dto'
 
 @ApiTags('用户')
 @Controller('user')
 @UseGuards(JwtAuthGuard)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    @InjectModel(User.name) private userModel: Model<User>,
+  ) {}
 
+  /**
+   * 注册用户
+   */
   @Post('register')
   @Public()
   async register(@Body() registerDto: RegisterDto) {
@@ -20,6 +39,9 @@ export class UserController {
     return ResUtil.success(result, '注册成功')
   }
 
+  /**
+   * 登录系统
+   */
   @Post('login')
   @Public()
   async login(@Body() loginDto: LoginDto) {
@@ -27,67 +49,37 @@ export class UserController {
     return ResUtil.success(result, '登录成功')
   }
 
+  /**
+   * 查询当前用户信息 （需要登录后，从 token 获取）
+   */
   @Get('info')
-  @UseGuards(JwtAuthGuard) // 使用认证守卫
   getUserInfo(@Request() req: any) {
     // req.user 就是从 Token 中提取出来的用户信息
     return this.userService.getUserInfo(req.user.userId)
   }
+
+  @Put('profile')
+  async updateUserProfile(@Request() req: any, @Body() updateUserDto: UpdateUserDto) {
+    const { userId } = req.user
+    const user = await this.userService.updateUser(userId, updateUserDto)
+    return ResponseUtil.success(user, '更新用户信息成功')
+  }
+
+  @Get('consumption-records')
+  @ApiOperation({
+    summary: '获取用户消费记录',
+    description: '获取用户所有的功能消费记录，包括简历押题、专项面试、综合面试等',
+  })
+  async getUserConsumptionRecords(
+    @Request() req: any,
+    @Query('skip') skip: number = 0,
+    @Query('limit') limit: number = 0,
+  ) {
+    const { userId } = req.user
+    const result = await this.userService.getUserConsumptionRecords(userId, {
+      skip,
+      limit,
+    })
+    return ResponseUtil.success(result, '获取成功')
+  }
 }
-
-// import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, HttpCode, HttpStatus, UseGuards, Request, NotFoundException } from '@nestjs/common'
-// import { UserService } from './user.service'
-// import { User } from './schema/user.schema'
-// import { User as CreateUserDto } from './dto/user.dto'
-// import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard'
-// import { Roles, RolesGuard } from 'src/auth/roles.guard'
-// import { CommonAuthGuard } from 'src/auth/common.auth.guard'
-
-// @ApiTags('用户')
-// @Controller('user')
-// // @UseGuards(CommonAuthGuard) // user 的所有路由都需要验证
-// export class UserController {
-//   constructor(private readonly userService: UserService) {}
-
-//   @Get()
-//   async findAll(): Promise<User[]> {
-//     return this.userService.findAll()
-//   }
-
-//   @Get(':id')
-//   findOne(@Param('id', ParseIntPipe) id: number): Promise<User | null> {
-//     if (id > 100) {
-//       throw new NotFoundException(`用户 ID ${id} 不存在`)
-//     }
-//     return this.userService.findOne(id)
-//   }
-
-//   @Post()
-//   @HttpCode(HttpStatus.CREATED)
-//   create(@Body() createUserDto: CreateUserDto) {
-//     return this.userService.create(createUserDto)
-//   }
-
-//   @Put(':id')
-//   update(@Param('id', ParseIntPipe) id: number, @Body() updateUserDto: { name?: string; email?: string }): Promise<User | null> {
-//     return this.userService.update(id.toString(), updateUserDto)
-//   }
-
-//   @Delete(':id')
-//   @HttpCode(HttpStatus.NO_CONTENT)
-//   remove(@Param('id', ParseIntPipe) id: number): Promise<User | null> {
-//     return this.userService.delete(id.toString())
-//   }
-
-// @Get('info')
-// @ApiBearerAuth()
-// @ApiOperation({
-//   summary: '获取当前用户信息',
-//   description: '获取当前登录用户的个人信息',
-// })
-// @UseGuards(JwtAuthGuard)
-// async getUserInfo(@Request() req: any) {
-//   return this.userService.getUserInfo(req.user.userId)
-// }
-// }
