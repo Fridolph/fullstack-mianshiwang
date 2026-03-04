@@ -19,6 +19,7 @@ import { InjectModel } from '@nestjs/mongoose'
 import { User } from './schema/user.schema'
 import { Model } from 'mongoose'
 import { UpdateUserDto } from './dto/update-user.dto'
+import { ChangePasswordDto } from './dto/change-password.dto'
 
 @ApiTags('用户')
 @Controller('user')
@@ -63,6 +64,18 @@ export class UserController {
     const { userId } = req.user
     const user = await this.userService.updateUser(userId, updateUserDto)
     return ResponseUtil.success(user, '更新用户信息成功')
+  }
+
+  /**
+   * 用户修改密码，需要比对前后密码是否一致
+   */
+  @Put('password')
+  async updateUserPassword(
+    @Request() req: any,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    const { userId } = req.user
+    return this.userService.changePassword(userId, changePasswordDto)
   }
 
   @Get('consumption-records')

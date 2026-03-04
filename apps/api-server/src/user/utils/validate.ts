@@ -43,6 +43,7 @@ export function generateRandomUsername() {
 // 检查登录参数是否完整
 export function checkRegisterParamsComplete(registerDto: RegisterDto) {
   const { phone, email, password } = registerDto
+  console.log('传入参数看下 &&&&&&', registerDto)
   // 手机注册方式：只需要有手机号即可
   if (phone) return true // 手机号注册可以不传密码，直接通过校验
   // 邮箱注册方式：必须有邮箱和密码

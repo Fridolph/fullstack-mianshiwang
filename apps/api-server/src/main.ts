@@ -47,7 +47,7 @@ async function bootstrap() {
   app.use(express.urlencoded({ extended: true }))
   // 使用自定义中间件
   app.use((req, res, next) => {
-    console.log('全局中间件')
+    // console.log('全局中间件')
     next()
   })
   app.useGlobalFilters(new AllExceptionsFilter())

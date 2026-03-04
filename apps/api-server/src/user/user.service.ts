@@ -18,6 +18,8 @@ import {
   generateRandomUsername,
 } from './utils/validate'
 import { UpdateUserDto } from './dto/update-user.dto'
+import { ChangePasswordDto } from './dto/change-password.dto'
+import { ResponseUtil } from 'src/common/utils/response.util'
 // import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
 
 @Injectable()
@@ -120,7 +122,7 @@ export class UserService {
   /**
    * 更新用户信息
    * @param userId 通过 userId 查询用户
-   * @param updateUserDto 传入修改参数
+   * @param updateUserDto 目前支持 [用户昵称, 用户头像, 邮箱] 密码等敏感信息应该新开接口
    * @returns 过滤掉敏感信息后的完整用户信息
    */
   async updateUser(userId: string, updateUserDto: UpdateUserDto) {
@@ -151,13 +153,29 @@ export class UserService {
     return updatedUser
   }
 
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.userModel.findById(userId)
+
+    if (!user) throw new NotFoundException('用户不存在')
+
+    // 安全性校验：当前密码是否正确
+    const isValid = await user.comparePassword(dto.oldPassword)
+    if (!isValid) throw new BadRequestException('当前密码不正确，请稍后重试')
+
+    // 设置新密码，会在 pre('save') 钩子自动加密
+    user.password = dto.newPassword
+    await user.save()
+
+    return ResponseUtil.empty('密码修改成功')
+  }
+
   /**
    * 获取用户消费记录
    * @param userId 用户的唯一标识
    * @param options 可选查询参数
    * @returns 返回用户的消费记录和消费统计数据
    */
-  async getUserConsumptionRecords(
+  getUserConsumptionRecords(
     userId: string, // 用户ID，用于标识和查询特定用户的消费记录
     options?: {
       skip: number // 跳过记录数量
@@ -178,34 +196,34 @@ export class UserService {
     //   .lean()
 
     // 统计用户各类型的消费信息，使用 MongoDB的聚合框架
-    const stats = await this.consumptionRecordModel.aggregate([
-      { $match: { userId } }, // 过滤出属于当前用户的消费记录
-      {
-        $group: {
-          // 按照消费类型进行分组
-          _id: '$type', // 按消费类型进行分组
-          count: { $sum: 1 }, // 统计每种类型的消费记录数量
-          successCount: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'success'] }, 1, 0],
-            },
-          },
-          failedCount: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'failed'] }, 1, 0],
-            },
-          },
-          totalCost: {
-            $sum: '$estimatedCost', // 计算每种类型的消费总额
-          },
-        },
-      },
-    ])
+    // const stats = await this.consumptionRecordModel.aggregate([
+    //   { $match: { userId } }, // 过滤出属于当前用户的消费记录
+    //   {
+    //     $group: {
+    //       // 按照消费类型进行分组
+    //       _id: '$type', // 按消费类型进行分组
+    //       count: { $sum: 1 }, // 统计每种类型的消费记录数量
+    //       successCount: {
+    //         $sum: {
+    //           $cond: [{ $eq: ['$status', 'success'] }, 1, 0],
+    //         },
+    //       },
+    //       failedCount: {
+    //         $sum: {
+    //           $cond: [{ $eq: ['$status', 'failed'] }, 1, 0],
+    //         },
+    //       },
+    //       totalCost: {
+    //         $sum: '$estimatedCost', // 计算每种类型的消费总额
+    //       },
+    //     },
+    //   },
+    // ])
 
     // 返回查询的消费记录和消费统计信息
     return {
       records,
-      stats,
+      // stats,
     }
   }
 }
