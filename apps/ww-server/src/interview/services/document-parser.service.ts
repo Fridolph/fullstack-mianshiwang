@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common'
 
 /**
  * 文档解析服务
@@ -6,5 +6,5 @@ import { Injectable, Logger } from '@nestjs/common';
  */
 @Injectable()
 export class DocumentParserService {
-  private readonly logger = new Logger(DocumentParserService.name);
+  private readonly logger = new Logger(DocumentParserService.name)
 }

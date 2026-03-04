@@ -1,25 +1,31 @@
-import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { UserModule } from './user/user.module';
-import { WechatModule } from './wechat/wechat.module';
-import { PaymentModule } from './payment/payment.module';
-import { StsModule } from './sts/sts.module';
-import { InterviewModule } from './interview/interview.module';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { JwtStrategy } from './auth/jwt.strategy';
-import { getTokenExpirationSeconds } from './common/utils/jwt.util';
+import { Module } from '@nestjs/common'
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core'
+import { ConfigModule, ConfigService } from '@nestjs/config'
+import { MongooseModule } from '@nestjs/mongoose'
+import { JwtModule } from '@nestjs/jwt'
+import { PassportModule } from '@nestjs/passport'
+import { AppController } from './app.controller'
+import { AppService } from './app.service'
+import { UserModule } from './user/user.module'
+import { WechatModule } from './wechat/wechat.module'
+import { PaymentModule } from './payment/payment.module'
+import { StsModule } from './sts/sts.module'
+import { InterviewModule } from './interview/interview.module'
+import { ResponseInterceptor } from './common/interceptors/response.interceptor'
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
+import { JwtStrategy } from './auth/jwt.strategy'
+import { getTokenExpirationSeconds } from './common/utils/jwt.util'
+import { resolve } from 'node:path'
+
+const envFilePath = resolve(
+  process.cwd(),
+  `.env.${process.env.NODE_ENV || 'development'}.local`,
+)
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: '.env.development',
+      envFilePath,
       isGlobal: true,
     }),
     MongooseModule.forRoot(
@@ -28,14 +34,14 @@ import { getTokenExpirationSeconds } from './common/utils/jwt.util';
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
-        const expirationSeconds = getTokenExpirationSeconds();
+      useFactory: (configService: ConfigService) => {
+        const expirationSeconds = getTokenExpirationSeconds()
         return {
           secret: configService.get<string>('JWT_SECRET') || 'wwzhidao-secret',
           signOptions: {
             expiresIn: expirationSeconds,
           },
-        };
+        }
       },
       inject: [ConfigService],
       global: true,

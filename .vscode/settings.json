@@ -12,5 +12,6 @@
   "editor.formatOnPaste": true,
   "conventionalCommits.scopes": [
     "AI"
-  ]
+  ],
+  "js/ts.tsdk.path": "node_modules/typescript/lib"
 }
