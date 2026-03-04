@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev:client": "pnpm --filter @mianshiwang/client dev",
-    "dev:server": "pnpm --filter @mianshiwang/api-server start:dev",
+    "dev:server": "pnpm --filter @mianshiwang/ww-server start:dev",
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",

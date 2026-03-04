@@ -9,5 +9,8 @@
   "editor.tabSize": 2,
   "editor.gotoLocation.multipleDefinitions": "goto",
   "editor.formatOnSave": true,
-  "editor.formatOnPaste": true
+  "editor.formatOnPaste": true,
+  "conventionalCommits.scopes": [
+    "AI"
+  ]
 }
