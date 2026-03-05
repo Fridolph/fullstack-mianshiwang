@@ -7,14 +7,36 @@ export class InterviewController {
   constructor(private readonly interviewService: InterviewService) {}
 
   @Post('/analyze-resume')
-  async analyzeResume(@Body() body: { resume: string; jobDescription: string }) {
+  async analyzeResume(
+    @Body() body: { resume: string; jobDescription: string; position: string },
+    @Request() req: any,
+  ) {
     const result = await this.interviewService.analyzeResume(
+      req?.user?.userId,
+      body.position,
       body.resume,
       body.jobDescription,
     )
     return {
       code: 200,
       data: result,
+    }
+  }
+
+  @Post('/continue-conversation')
+  async continueConversation(
+    @Body() body: { sessionId: string; question: string },
+  ) {
+    const result = await this.interviewService.continueConversation(
+      body.sessionId,
+      body.question,
+    )
+
+    return {
+      code: 200,
+      data: {
+        response: result,
+      },
     }
   }
 
