@@ -1,0 +1,9 @@
+[上卦下卦][卦名] type(scope): 简短描述
+
+背景：
+
+踩坑记录：
+
+关联经验：
+
+#沉淀 标题 -> context/experience/example.md

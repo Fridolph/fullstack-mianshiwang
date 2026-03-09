@@ -9,7 +9,10 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "dao:setup": "node scripts/setup-dao-git.mjs",
+    "dao:commit": "node scripts/dao-commit.mjs",
+    "dao:validate": "node scripts/validate-dao-commit.mjs"
   },
   "repository": {
     "type": "git",
