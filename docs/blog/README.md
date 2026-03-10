@@ -16,3 +16,4 @@
 - `docs/blog/2026-03-10-task-4-2-user-consumption-boundary.md`：为什么要把消费记录查询从 `UserService` 里拿出来
 - `docs/blog/2026-03-10-task-4-closeout.md`：`Task 4` 第二个真实样本闭环阶段总结
 - `docs/blog/2026-03-10-task-5-plan.md`：为什么 `Task 5` 更适合先做 `payment + entitlement`
+- `docs/blog/2026-03-10-branch-learning-overview.md`：按分支顺序回看这套 Dao 实践的学习地图
