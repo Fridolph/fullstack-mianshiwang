@@ -1,0 +1,9 @@
+# 技术博客索引
+
+这里记录 `fullstack-mianshiwang` 在接入 `Dao` 工程体系过程中的阶段性总结。
+这些文章不替代正式规范文档，而是用来保存每一轮实施中的判断、踩坑和收获。
+
+## 目录
+
+- `docs/blog/2026-03-10-dao-commit-onboarding.md`：第一轮 Dao Commit 最小基础设施接入记录
+- `docs/blog/2026-03-10-dao-git-workflow.md`：为什么要在当前阶段补 Dao Git Workflow
