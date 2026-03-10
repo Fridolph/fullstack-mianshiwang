@@ -11,3 +11,4 @@
 - `docs/blog/2026-03-10-task-3-1-interview-boundary.md`：为什么先收 `interview` 的入口边界
 - `docs/blog/2026-03-10-task-3-2-interview-ai-boundary.md`：为什么要让 `InterviewAIService` 真正承担职责
 - `docs/blog/2026-03-10-task-3-closeout.md`：`Task 3` 首个真实样本闭环阶段总结
+- `docs/blog/2026-03-10-task-4-plan.md`：为什么 `Task 4` 更适合先做 `auth + user`
