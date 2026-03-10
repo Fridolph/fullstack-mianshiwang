@@ -1,47 +1,34 @@
-import { AIModelFactory } from '../../ai/services/ai-model.factory'
 import { Injectable, Logger } from '@nestjs/common'
-import { PromptTemplate } from '@langchain/core/prompts'
 import { RESUME_ANALYSIS_PROMPT } from '../prompts/resume-analysis.prompts'
-import { JsonOutputParser } from '@langchain/core/output_parsers'
+import { InterviewAIService } from './interview-ai.service'
 
 /**
- * 简历分析服务，负责简历分析的 AI Chain
+ * 简历分析服务，负责简历分析的业务上下文
  * - 管理简历分析的 Prompt
- * - 初始化分析 Chain
- * - 调用 AI 进行分析
- *
- * 为什么要单独提取这个服务？
- * 因为建立分析涉及特定的 Prompt 和 Chain，将来可能还有其他分析（编程题分析、答题分析等）
- * 每个分析都有自己的 Prompt 和 Chain，所以我们为每个分析创建一个独立的服务
- *
- * InterviewService 只关心会话管理，不关心具体的分析逻辑
+ * - 提供简历分析所需变量
+ * - 把结构化输出委托给 InterviewAIService
  */
 @Injectable()
 export class ResumeAnalysisService {
   private readonly logger = new Logger(ResumeAnalysisService.name)
 
-  constructor(private aiModelFactory: AIModelFactory) {}
+  constructor(private interviewAIService: InterviewAIService) {}
 
   async analyze(resumeContent: string, jobDescription: string): Promise<any> {
-    // 1、创建Prompt模版
-    const prompt = PromptTemplate.fromTemplate(RESUME_ANALYSIS_PROMPT)
-    // 2、获取模型
-    const model = this.aiModelFactory.createDefaultModel()
-    // 3、创建输出解析器
-    const parser = new JsonOutputParser()
-    // 4、组建链
-    const chain = prompt.pipe(model).pipe(parser)
-
     try {
       this.logger.log('开始分析简历 ...')
-      // 5、调用链
-      const result = await chain.invoke({
-        resume_content: resumeContent,
-        job_description: jobDescription,
-      })
+      const result = await this.interviewAIService.invokeStructuredPrompt(
+        RESUME_ANALYSIS_PROMPT,
+        {
+          resume_content: resumeContent,
+          job_description: jobDescription,
+        },
+        'stable',
+      )
       this.logger.log('简历分析完成')
       return result
-    } catch (error) {
+    }
+    catch (error) {
       this.logger.error('简历分析失败', error)
       throw error
     }
