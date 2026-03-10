@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { Message, SessionData } from '../interfaces/message.interface'
-import { v4 as generateUUID } from 'uuid'
+import { randomUUID } from 'node:crypto'
 
 /**
  * 会话管理服务 - 负责管理用户和AI的对话会话
@@ -15,11 +15,10 @@ import { v4 as generateUUID } from 'uuid'
 @Injectable()
 export class SessionManager {
   private readonly logger = new Logger(SessionManager.name)
-  // 内存存储 sessionId -> 历史对话
   private sessions = new Map<string, SessionData>()
 
   createSession(userId: string, position: string, systemMessage: string) {
-    const sessionId = generateUUID()
+    const sessionId = randomUUID()
     const sessionData: SessionData = {
       sessionId,
       userId,
@@ -35,6 +34,18 @@ export class SessionManager {
     return sessionId
   }
 
+  getSession(sessionId: string): SessionData | undefined {
+    return this.sessions.get(sessionId)
+  }
+
+  getSessionOrThrow(sessionId: string): SessionData {
+    const session = this.getSession(sessionId)
+    if (!session) {
+      throw new NotFoundException('会话不存在或已过期')
+    }
+    return session
+  }
+
   /**
    * 向会话添加信息
    * @param sessionId 会话ID
@@ -42,9 +53,7 @@ export class SessionManager {
    * @param content 消息内容
    */
   addMessage(sessionId: string, role: 'user' | 'assistant', content: string) {
-    const session = this.sessions.get(sessionId)
-
-    if (!session) throw new Error(`会话不存在: ${sessionId}`)
+    const session = this.getSessionOrThrow(sessionId)
 
     session.messages.push({
       role,
@@ -60,8 +69,7 @@ export class SessionManager {
    * @returns 当前会话的历史消息
    */
   getHistory(sessionId: string): Message[] {
-    const session = this.sessions.get(sessionId)
-    return session?.messages || []
+    return this.getSessionOrThrow(sessionId).messages
   }
 
   /**
@@ -74,12 +82,10 @@ export class SessionManager {
   getRecentMessages(sessionId: string, count: number = 10): Message[] {
     const history = this.getHistory(sessionId)
 
-    if (history.length === 0) return []
+    if (history.length === 0)
+      return []
 
-    // System Message 一定要保留（作为第一条）
     const systemMessage = history[0]
-    // 获取最近 count 条消息
-    // [1,2,3,4,5].slice(-2) -> [4,5]
     const recentMessages = history.slice(-count)
 
     if (recentMessages[0]?.role !== 'system') {
@@ -107,7 +113,7 @@ export class SessionManager {
    */
   cleanupExpiredSessions() {
     const now = new Date()
-    const expirationTime = 60 * 60 * 1000 // 1小时
+    const expirationTime = 60 * 60 * 1000
 
     for (const [sessionId, session] of this.sessions.entries()) {
       if (now.getTime() - session.lastActivityAt.getTime() > expirationTime) {

@@ -8,3 +8,4 @@
 - `docs/blog/2026-03-10-dao-commit-onboarding.md`：第一轮 Dao Commit 最小基础设施接入记录
 - `docs/blog/2026-03-10-dao-git-workflow.md`：为什么要在当前阶段补 Dao Git Workflow
 - `docs/blog/2026-03-10-task-3-first-real-sample-plan.md`：为什么 `Task 3` 的第一刀要落在 `interview + ai`
+- `docs/blog/2026-03-10-task-3-1-interview-boundary.md`：为什么先收 `interview` 的入口边界

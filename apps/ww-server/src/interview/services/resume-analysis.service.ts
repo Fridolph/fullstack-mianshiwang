@@ -1,4 +1,4 @@
-import { AIModelFactory } from 'src/ai/services/ai-model.factory'
+import { AIModelFactory } from '../../ai/services/ai-model.factory'
 import { Injectable, Logger } from '@nestjs/common'
 import { PromptTemplate } from '@langchain/core/prompts'
 import { RESUME_ANALYSIS_PROMPT } from '../prompts/resume-analysis.prompts'

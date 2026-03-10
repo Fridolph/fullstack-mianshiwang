@@ -1,62 +1,46 @@
-import { Controller, Post, UseGuards, Body, Request, Res } from '@nestjs/common'
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard'
+import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common'
+import { JwtAuthGuard } from '../auth/jwt-auth.guard'
+import { ResponseUtil } from '../common/utils/response.util'
+import { AnalyzeResumeDto } from './dto/analyze-resume.dto'
+import { ContinueConversationDto } from './dto/continue-conversation.dto'
 import { InterviewService } from './services/interview.service'
 
 @Controller('interview')
+@UseGuards(JwtAuthGuard)
 export class InterviewController {
   constructor(private readonly interviewService: InterviewService) {}
 
   @Post('/analyze-resume')
   async analyzeResume(
-    @Body() body: { resume: string; jobDescription: string; position: string },
+    @Body() body: AnalyzeResumeDto,
     @Request() req: any,
   ) {
     const result = await this.interviewService.analyzeResume(
-      req?.user?.userId,
+      req.user.userId,
       body.position,
       body.resume,
       body.jobDescription,
     )
-    return {
-      code: 200,
-      data: result,
-    }
+
+    return ResponseUtil.success(result, '简历分析成功')
   }
 
   @Post('/continue-conversation')
   async continueConversation(
-    @Body() body: { sessionId: string; question: string },
+    @Body() body: ContinueConversationDto,
+    @Request() req: any,
   ) {
     const result = await this.interviewService.continueConversation(
+      req.user.userId,
       body.sessionId,
       body.question,
     )
 
-    return {
-      code: 200,
-      data: {
+    return ResponseUtil.success(
+      {
         response: result,
       },
-    }
+      '继续对话成功',
+    )
   }
-
-  // // 接口 1：简历押题
-  // @Post('resume/quiz/stream')
-  // @UseGuards(JwtAuthGuard)
-  // async resumeQuizStream(@Body() dto, @Request() req, @Res() res) {}
-
-  // // 接口 2：开始模拟面试
-  // @Post('mock/start')
-  // @UseGuards(JwtAuthGuard)
-  // async startMockInterview(@Body() dto, @Request() req) {}
-
-  // // 接口 3：回答面试问题
-  // @Post('mock/answer')
-  // @UseGuards(JwtAuthGuard)
-  // async answerMockInterview(@Body() dto, @Request() req) {}
-
-  // // 接口 4：结束面试
-  // @Post('mock/end')
-  // @UseGuards(JwtAuthGuard)
-  // async endMockInterview(@Body() data, @Request() req) {}
 }
