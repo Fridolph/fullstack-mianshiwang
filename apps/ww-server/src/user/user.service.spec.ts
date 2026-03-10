@@ -1,7 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
-import { ConsumptionRecord } from '../interview/schemas/consumption-record.schema'
 import { User } from './schemas/user.schema'
 import { UserService } from './user.service'
 
@@ -10,10 +9,6 @@ describe('UserService', () => {
   const userModel = {
     findOne: jest.fn(),
   }
-  const consumptionRecordModel = {
-    find: jest.fn(),
-    aggregate: jest.fn(),
-  }
 
   beforeEach(async () => {
     jest.clearAllMocks()
@@ -21,10 +16,6 @@ describe('UserService', () => {
       providers: [
         UserService,
         { provide: getModelToken(User.name), useValue: userModel },
-        {
-          provide: getModelToken(ConsumptionRecord.name),
-          useValue: consumptionRecordModel,
-        },
       ],
     }).compile()
 

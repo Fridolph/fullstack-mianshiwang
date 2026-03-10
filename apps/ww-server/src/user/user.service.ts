@@ -4,18 +4,12 @@ import { Model } from 'mongoose'
 import { LoginDto } from './dto/login.dto'
 import { RegisterDto } from './dto/register.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
-import {
-  ConsumptionRecord,
-  ConsumptionRecordDocument,
-} from '../interview/schemas/consumption-record.schema'
 import { User, UserDocument } from './schemas/user.schema'
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(ConsumptionRecord.name)
-    private consumptionRecordModel: Model<ConsumptionRecordDocument>,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -94,42 +88,5 @@ export class UserService {
     }
 
     return this.sanitizeUser(user)
-  }
-
-  async getUserConsumptionRecords(
-    userId: string,
-    options?: { skip: number; limit: number },
-  ) {
-    const skip = options?.skip || 0
-    const limit = options?.limit || 20
-
-    const records = await this.consumptionRecordModel
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean()
-
-    const stats = await this.consumptionRecordModel.aggregate([
-      { $match: { userId } },
-      {
-        $group: {
-          _id: '$type',
-          count: { $sum: 1 },
-          successCount: {
-            $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] },
-          },
-          failedCount: {
-            $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] },
-          },
-          totalCost: { $sum: '$estimatedCost' },
-        },
-      },
-    ])
-
-    return {
-      records,
-      stats,
-    }
   }
 }

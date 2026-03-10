@@ -7,6 +7,7 @@ import {
 } from '../interview/schemas/consumption-record.schema'
 import { UserController } from './user.controller'
 import { User, UserSchema } from './schemas/user.schema'
+import { UserConsumptionQueryService } from './services/user-consumption-query.service'
 import { UserService } from './user.service'
 
 @Module({
@@ -17,7 +18,7 @@ import { UserService } from './user.service'
     ]),
   ],
   controllers: [UserController],
-  providers: [UserService, AuthService],
-  exports: [UserService, AuthService],
+  providers: [UserService, UserConsumptionQueryService, AuthService],
+  exports: [UserService, UserConsumptionQueryService, AuthService],
 })
 export class UserModule {}

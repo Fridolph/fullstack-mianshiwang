@@ -16,6 +16,7 @@ import { ResponseUtil } from '../common/utils/response.util'
 import { LoginDto } from './dto/login.dto'
 import { RegisterDto } from './dto/register.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
+import { UserConsumptionQueryService } from './services/user-consumption-query.service'
 import { UserService } from './user.service'
 
 @Controller('user')
@@ -24,6 +25,7 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly authService: AuthService,
+    private readonly userConsumptionQueryService: UserConsumptionQueryService,
   ) {}
 
   @Post('register')
@@ -65,7 +67,7 @@ export class UserController {
     @Query('limit') limit: number = 20,
   ) {
     const { userId } = req.user
-    const result = await this.userService.getUserConsumptionRecords(userId, {
+    const result = await this.userConsumptionQueryService.getUserConsumptionRecords(userId, {
       skip,
       limit,
     })
