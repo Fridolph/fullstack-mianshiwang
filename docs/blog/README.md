@@ -10,3 +10,4 @@
 - `docs/blog/2026-03-10-task-3-first-real-sample-plan.md`：为什么 `Task 3` 的第一刀要落在 `interview + ai`
 - `docs/blog/2026-03-10-task-3-1-interview-boundary.md`：为什么先收 `interview` 的入口边界
 - `docs/blog/2026-03-10-task-3-2-interview-ai-boundary.md`：为什么要让 `InterviewAIService` 真正承担职责
+- `docs/blog/2026-03-10-task-3-closeout.md`：`Task 3` 首个真实样本闭环阶段总结
