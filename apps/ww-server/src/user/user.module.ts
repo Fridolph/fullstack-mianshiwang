@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
-import { UserController } from './user.controller';
-import { UserService } from './user.service';
-import { MongooseModule } from '@nestjs/mongoose';
-import { User, UserSchema } from './schemas/user.schema';
+import { Module } from '@nestjs/common'
+import { MongooseModule } from '@nestjs/mongoose'
+import { AuthService } from '../auth/auth.service'
 import {
   ConsumptionRecord,
   ConsumptionRecordSchema,
-} from '../interview/schemas/consumption-record.schema';
+} from '../interview/schemas/consumption-record.schema'
+import { UserController } from './user.controller'
+import { User, UserSchema } from './schemas/user.schema'
+import { UserService } from './user.service'
 
 @Module({
   imports: [
@@ -14,9 +15,9 @@ import {
       { name: User.name, schema: UserSchema },
       { name: ConsumptionRecord.name, schema: ConsumptionRecordSchema },
     ]),
-  ], // 引入数据库模块
+  ],
   controllers: [UserController],
-  providers: [UserService],
-  exports: [UserService], // 导出服务，供其他模块使用
+  providers: [UserService, AuthService],
+  exports: [UserService, AuthService],
 })
 export class UserModule {}

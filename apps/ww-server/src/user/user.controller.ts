@@ -1,26 +1,30 @@
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
   Get,
-  UseGuards,
-  Request,
+  Post,
   Put,
   Query,
+  Request,
+  UseGuards,
 } from '@nestjs/common'
-import { UserService } from './user.service'
-import { RegisterDto } from './dto/register.dto'
-import { ResponseUtil } from '../common/utils/response.util'
-import { LoginDto } from './dto/login.dto'
+import { ApiOperation } from '@nestjs/swagger'
+import { AuthService } from '../auth/auth.service'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import { Public } from '../auth/public.decorator'
-import { ApiOperation } from '@nestjs/swagger'
+import { ResponseUtil } from '../common/utils/response.util'
+import { LoginDto } from './dto/login.dto'
+import { RegisterDto } from './dto/register.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
+import { UserService } from './user.service'
 
 @Controller('user')
-@UseGuards(JwtAuthGuard) // 使用认证守卫
+@UseGuards(JwtAuthGuard)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Post('register')
   @Public()
@@ -32,7 +36,7 @@ export class UserController {
   @Post('login')
   @Public()
   async login(@Body() loginDto: LoginDto) {
-    const result = await this.userService.login(loginDto)
+    const result = await this.authService.login(loginDto)
     return ResponseUtil.success(result, '登录成功')
   }
 
@@ -50,11 +54,7 @@ export class UserController {
     return ResponseUtil.success(user, '更新成功')
   }
 
-  /**
-   * 获取用户消费记录（包括简历押题、专项面试、综合面试）
-   */
   @Get('consumption-records')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: '获取用户消费记录',
     description: '获取用户所有的功能消费记录，包括简历押题、专项面试、综合面试等',
