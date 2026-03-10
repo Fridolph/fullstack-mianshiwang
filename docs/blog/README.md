@@ -14,3 +14,4 @@
 - `docs/blog/2026-03-10-task-4-plan.md`：为什么 `Task 4` 更适合先做 `auth + user`
 - `docs/blog/2026-03-10-task-4-1-auth-user-boundary.md`：为什么先收 `auth` 和 `user` 的核心边界
 - `docs/blog/2026-03-10-task-4-2-user-consumption-boundary.md`：为什么要把消费记录查询从 `UserService` 里拿出来
+- `docs/blog/2026-03-10-task-4-closeout.md`：`Task 4` 第二个真实样本闭环阶段总结

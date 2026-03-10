@@ -6,3 +6,4 @@
 ## 目录
 
 - `docs/examples/2026-03-10-interview-first-real-sample.md`：`interview + ai` 首个真实样本闭环记录
+- `docs/examples/2026-03-10-auth-user-second-real-sample.md`：`auth + user` 第二个真实样本闭环记录
