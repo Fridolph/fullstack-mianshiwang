@@ -14,13 +14,14 @@ import { InterviewModule } from './interview/interview.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
 import { JwtStrategy } from './auth/jwt.strategy'
-import { getTokenExpirationSeconds } from './common/utils/jwt.util'
 import { resolve } from 'node:path'
 
-const envFilePath = resolve(
-  process.cwd(),
-  `.env.${process.env.NODE_ENV || 'development'}.local`,
-)
+const nodeEnv = process.env.NODE_ENV || 'development'
+const envFilePath = [
+  resolve(process.cwd(), `.env.${nodeEnv}.local`),
+  resolve(process.cwd(), '.env.local'),
+  resolve(process.cwd(), '.env'),
+]
 
 @Module({
   imports: [
@@ -28,18 +29,26 @@ const envFilePath = resolve(
       envFilePath,
       isGlobal: true,
     }),
-    MongooseModule.forRoot(
-      process.env.MONGODB_URI || 'mongodb://localhost:27017/wwzhidao',
-    ),
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        uri:
+          configService.get<string>('MONGODB_URI') || 'mongodb://127.0.0.1:27017',
+        dbName: configService.get<string>('DB_NAME') || 'wwzhidao',
+        retryAttempts: 2,
+        retryDelay: 1000,
+        serverSelectionTimeoutMS: 5000,
+      }),
+      inject: [ConfigService],
+    }),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const expirationSeconds = getTokenExpirationSeconds()
         return {
           secret: configService.get<string>('JWT_SECRET') || 'wwzhidao-secret',
           signOptions: {
-            expiresIn: expirationSeconds,
+            expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '24h',
           },
         }
       },

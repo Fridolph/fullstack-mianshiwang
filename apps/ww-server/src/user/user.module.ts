@@ -1,12 +1,12 @@
-import { Module } from '@nestjs/common';
-import { UserController } from './user.controller';
-import { UserService } from './user.service';
-import { MongooseModule } from '@nestjs/mongoose';
-import { User, UserSchema } from './schemas/user.schema';
+import { Module } from '@nestjs/common'
+import { UserController } from './user.controller'
+import { UserService } from './user.service'
+import { MongooseModule } from '@nestjs/mongoose'
+import { User, UserSchema } from './schemas/user.schema'
 import {
   ConsumptionRecord,
   ConsumptionRecordSchema,
-} from '../interview/schemas/consumption-record.schema';
+} from '../interview/schemas/consumption-record.schema'
 
 @Module({
   imports: [
