@@ -4,11 +4,19 @@ import { InterviewService } from './services/interview.service'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import type { Response } from 'express'
 import { ResumeQuizDto } from './dto/resume-quiz.dto'
+import { Logger } from '@nestjs/common'
 
 @Controller('interview')
 export class InterviewController {
+  private readonly logger = new Logger(InterviewController.name)
+
   constructor(private readonly interviewService: InterviewService) {}
 
+  /**
+   * 简历分析接口
+   * @param body
+   * @param req
+   */
   @Post('/analyze-resume')
   async analyzeResume(
     @Body() body: { resume: string; jobDescription: string; position: string },
@@ -26,6 +34,9 @@ export class InterviewController {
     }
   }
 
+  /**
+   * 继续对话 - 实现对话历史，能够多轮对话
+   */
   @Post('/continue-conversation')
   async continueConversation(
     @Body() body: { sessionId: string; question: string },
@@ -55,10 +66,12 @@ export class InterviewController {
   ) {
     const userId = req.user.userId
     // 设置SSE响应头
+    res.status(200)
     res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache')
     res.setHeader('Connection', 'keep-alive')
     res.setHeader('X-Accel-Buffering', 'no') // 禁用 Nginx 缓冲
+    res.flushHeaders?.()
 
     // 订阅进度事件
     const subscription = this.interviewService
@@ -69,16 +82,20 @@ export class InterviewController {
           res.write(`data: ${JSON.stringify(event)}\n\n`)
         },
         error: (error) => {
+          const message = error instanceof Error ? error.message : String(error)
+          this.logger.error(`简历押题流失败: ${message}`, error)
           // 发送错误事件
           res.write(
-            `data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`,
+            `data: ${JSON.stringify({ type: 'error', error: message })}\n\n`,
           )
+          res.end()
         },
-        complete: () => res.send(), // 完成后关闭连接
+        complete: () => res.end(), // 完成后关闭连接
       })
 
     // 客户端断开连接时取消订阅
     req.on('close', () => {
+      this.logger.log(`客户端断开简历押题流 userId=${userId}`)
       subscription.unsubscribe()
     })
   }
