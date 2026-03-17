@@ -1,4 +1,4 @@
-import { DocumentParserService } from './document-parser.service';
+import { DocumentParserService } from './document-parser.service'
 import { v4 as uuidv4 } from 'uuid'
 import { ConversationContinuationService } from './conversation-continuation.service'
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
@@ -53,6 +53,7 @@ export class InterviewService {
     private sessionManager: SessionManager,
     private resumeAnalysisService: ResumeAnalysisService,
     private conversationContinuationService: ConversationContinuationService,
+    private documentParserService: DocumentParserService,
     @InjectModel(ConsumptionRecord.name)
     private consumptionRecordModel: Model<ConsumptionRecordDocument>,
     @InjectModel(ResumeQuizResult.name)
@@ -552,11 +553,14 @@ ${refundError.stack}
     if (dto.resumeURL) {
       try {
         // 1. 从url下载文件
-        const rawText = await this.documentParserService.parseDocumentFromUrl(dto.resumeURL)
+        const rawText = await this.documentParserService.parseDocumentFromUrl(
+          dto.resumeURL,
+        )
         // 2. 清理文本（移除格式化符号等）
         const cleanedText = this.documentParserService.cleanText(rawText)
         // 3. 验证内容质量
-        const validation = this.documentParserService.validateResumeContent(cleanedText)
+        const validation =
+          this.documentParserService.validateResumeContent(cleanedText)
 
         if (!validation.isValid) {
           throw new BadRequestException(validation.reason)
@@ -566,22 +570,31 @@ ${refundError.stack}
           this.logger.warn(`简历解析警告: ${validation.warnings.join('; ')}`)
         }
         // 5. 检查内容长度 (避免超长内容)
-        const estimatedTokens = this.documentParserService.estimateTokens(cleanedText)
+        const estimatedTokens =
+          this.documentParserService.estimateTokens(cleanedText)
 
         if (estimatedTokens > 6000) {
-          this.logger.warn(`简历内容过长: ${estimatedTokens} tokens, 将进行截断`)
+          this.logger.warn(
+            `简历内容过长: ${estimatedTokens} tokens, 将进行截断`,
+          )
           // 截取前 6000 tokens 对应的字符
           const maxChars = 6000 * 1.5 // TODO 约9000字符 这里写死的，应该生产正确预估出来
           const truncatedText = cleanedText.substring(0, maxChars)
-          this.logger.log(`简历已截断，原长度 ${cleanedText.length} 字符, 截断后 ${truncatedText.length} 字符；Tokens 用量约 ${}`)
+          this.logger.log(
+            `简历已截断，原长度 ${cleanedText.length} 字符, 截断后 ${truncatedText.length} 字符；Tokens 用量约 ${estimatedTokens}`,
+          )
         }
-      }
-      catch (error) {
+      } catch (error) {
         // 文件解析失败，返回友好的错误信息
         if (error instanceof BadRequestException) throw error
-        this.logger.log(`解析简历失败: resumeId=${dto.resumeId}, error=${error.message}`, error.stack)
+        this.logger.log(
+          `解析简历失败: resumeId=${dto.resumeId}, error=${error.message}`,
+          error.stack,
+        )
 
-        throw new BadRequestException(`简历文件解析失败，您可直接粘贴简历文本，或者上传 pdf 或 docx 文件，且未加密和损坏`)
+        throw new BadRequestException(
+          `简历文件解析失败，您可直接粘贴简历文本，或者上传 pdf 或 docx 文件，且未加密和损坏`,
+        )
       }
     }
 

@@ -153,7 +153,7 @@ export class ResumeQuizResult {
   questions: InterviewQuestion[] // 面试问题列表
 
   @Prop()
-  totalQuestion?: number // 问题总数
+  totalQuestions?: number // 问题总数
 
   @Prop()
   summary?: string // AI生成的总结 / 建议
@@ -181,10 +181,10 @@ export class ResumeQuizResult {
   radarData?: RadarDimension[] // 雷达图维度数据
 
   @Prop({ type: [String], default: [] })
-  stengths?: string[] // 优势
+  strengths?: string[] // 优势
 
   @Prop()
-  weakness?: string[] // 薄弱环节
+  weaknesses?: string[] // 薄弱环节
 
   @Prop({ type: [String], default: [] })
   interviewTips?: string[] // 面试准备建议

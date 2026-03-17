@@ -84,6 +84,14 @@ export class ResumeQuizDto {
   resumeContent?: string
 
   @ApiProperty({
+    description: '线上可下载的简历地址',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  resumeURL?: string
+
+  @ApiProperty({
     description: '请求ID（用于幂等性）',
     required: false,
   })
