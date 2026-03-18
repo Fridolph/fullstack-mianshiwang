@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nx nuxt:build",
-    "dev": "rm -rf ./.nuxt && nx serve",
+    "build": "nuxt build",
+    "dev": "nuxt dev",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "lint": "nx eslint:lint",
+    "lint": "eslint .",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {

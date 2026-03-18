@@ -1,47 +1,27 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+import { defineNuxtConfig } from 'nuxt/config'
+
 export default defineNuxtConfig({
+  srcDir: 'app',
+  compatibilityDate: '2025-11-11',
+
   modules: [
     '@nuxt/eslint',
-    '@nuxtjs/i18n',
     '@nuxt/ui',
-    '@nuxt/scripts',
-    '@nuxt/test-utils',
     '@nuxt/image',
-    '@nuxtjs/mdc',
     '@vueuse/nuxt',
     '@pinia/nuxt',
-    'pinia-plugin-persistedstate',
-    '@nuxt/content'
+    'pinia-plugin-persistedstate/nuxt'
   ],
 
   imports: {
-    autoImport: true,
-    presets: [
-      'vue',
-      {
-        from: 'pinia-plugin-persistedstate',
-        imports: ['definePersistedState']
-      }
-    ] // 自动导入 Vue 的 ref/onMounted 等 API
+    dirs: ['api', 'composables', 'stores'],
+    presets: ['vue']
   },
 
   devtools: {
     enabled: true,
-
     timeline: {
       enabled: true
-    }
-  },
-
-  app: {
-    head: {
-      // htmlAttrs: { lang: 'en' },
-      // title: 'GreenSketch | Sketching a Greener Future',
-      meta: [
-        { name: 'mobile-web-app-capable', content: 'yes' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no' }
-      ],
-      script: []
     }
   },
 
@@ -51,23 +31,32 @@ export default defineNuxtConfig({
     fonts: false
   },
 
-  // 配置持久化存储
-  appConfig: {
-    piniaPersistedstate: {
-      storage: 'localStorage', // 默认存储方式
-      cookieOptions: {
-        sameSite: 'strict',
-        maxAge: 90 * 24 * 60 * 60 // 三月
-      }
+  icon: {
+    serverBundle: {
+      collections: ['lucide']
     }
   },
 
-  // 添加 Shiki 到 transpile 列表，确保它能被正确处理
-  build: {
-    transpile: ['shiki']
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3000/api',
+      appName: '面试王',
+      appDescription: '基于 Nuxt、NestJS 与 AI 能力的全栈面试练习平台'
+    }
   },
 
-  routeRules: {
+  app: {
+    head: {
+      title: '面试王',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        {
+          name: 'description',
+          content: '在 monorepo 中逐步迁移并实现的全栈面试练习平台。'
+        }
+      ]
+    }
   },
 
   devServer: {
@@ -75,22 +64,9 @@ export default defineNuxtConfig({
     port: 5945
   },
 
-  // 确保生成类型声明
   typescript: {
-    shim: false,
     strict: true,
-    tsConfig: {
-      compilerOptions: {
-        moduleResolution: 'bundler',
-        types: [
-          '@nuxt/types',
-          '@nuxt/ui',
-          'nuxt/auto-imports',
-          'nuxt',
-          'pinia'
-        ]
-      }
-    }
+    typeCheck: false
   },
 
   eslint: {
@@ -100,16 +76,5 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
-  },
-  // 添加 i18n 配置
-  i18n: {
-    defaultLocale: 'zh',
-    strategy: 'no_prefix',
-    lazy: false,
-    locales: [
-      { code: 'zh', name: 'Chinese', file: 'zh.json' },
-      { code: 'en', name: 'English', file: 'en.json' }
-    ],
-    preload: ['zh', 'en']
   }
 })
