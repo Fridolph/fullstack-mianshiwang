@@ -60,6 +60,8 @@ const benefits = [
 
 <style scoped>
 .auth-benefits {
+  display: grid;
+  gap: 24px;
   padding: clamp(28px, 5vw, 48px);
 }
 
@@ -68,7 +70,6 @@ const benefits = [
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  margin-bottom: 18px;
   border-radius: 999px;
   color: var(--app-primary);
   background: var(--app-primary-soft);
@@ -76,17 +77,21 @@ const benefits = [
   font-weight: 700;
 }
 
+.auth-benefits :deep(.section-description) {
+  max-width: 58ch;
+}
+
 .auth-benefits__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 28px;
+  gap: 18px;
 }
 
 .auth-benefits__item {
   display: flex;
   gap: 14px;
-  padding: 18px;
+  min-height: 100%;
+  padding: 20px;
   border: 1px solid var(--app-border);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.6);
@@ -117,7 +122,6 @@ const benefits = [
 }
 
 .auth-benefits__tips {
-  margin-top: 24px;
   padding: 20px;
   border-radius: 20px;
   background: linear-gradient(135deg, rgba(5, 150, 105, 0.08), rgba(255, 255, 255, 0.8));

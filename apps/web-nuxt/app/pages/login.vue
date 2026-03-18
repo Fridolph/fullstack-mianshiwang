@@ -38,13 +38,14 @@ async function handleSuccess() {
 .login-page {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(360px, 420px);
-  gap: 24px;
-  align-items: start;
+  gap: 28px;
+  align-items: stretch;
 }
 
 @media (max-width: 960px) {
   .login-page {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
 }
 </style>

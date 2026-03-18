@@ -20,17 +20,20 @@ const services = [
 
 <template>
   <section class="service-grid">
-    <article
+    <UCard
       v-for="item in services"
       :key="item.title"
-      class="service-card surface-card"
+      class="service-card"
+      :ui="{ body: 'p-7 sm:p-8' }"
     >
-      <div class="service-card__icon">
-        <UIcon :name="item.icon" class="size-5" />
+      <div class="service-card__body">
+        <div class="service-card__icon">
+          <UIcon :name="item.icon" class="size-5" />
+        </div>
+        <h2>{{ item.title }}</h2>
+        <p>{{ item.description }}</p>
       </div>
-      <h2>{{ item.title }}</h2>
-      <p>{{ item.description }}</p>
-    </article>
+    </UCard>
   </section>
 </template>
 
@@ -38,11 +41,17 @@ const services = [
 .service-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .service-card {
-  padding: 24px;
+  min-height: 100%;
+}
+
+.service-card__body {
+  display: grid;
+  gap: 16px;
+  height: 100%;
 }
 
 .service-card__icon {
@@ -57,7 +66,7 @@ const services = [
 }
 
 .service-card h2 {
-  margin: 16px 0 10px;
+  margin: 0;
   font-size: 20px;
 }
 
@@ -65,6 +74,7 @@ const services = [
   margin: 0;
   color: var(--app-muted);
   line-height: 1.7;
+  max-width: 24ch;
 }
 
 @media (max-width: 960px) {

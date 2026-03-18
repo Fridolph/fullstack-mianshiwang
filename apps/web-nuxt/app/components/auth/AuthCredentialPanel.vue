@@ -15,25 +15,25 @@ const loading = ref(false)
 
 const loginForm = reactive<LoginPayload>({
   email: '',
-  password: ''
+  password: '',
 })
 
 const registerForm = reactive<RegisterPayload & { confirmPassword: string }>({
   username: '',
   email: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
 })
 
 const panelTitle = computed(() =>
-  mode.value === 'login' ? '登录你的学习环境' : '先创建一个本地账号'
+  mode.value === 'login' ? '登录你的学习环境' : '先创建一个本地账号',
 )
 
 async function handleLogin() {
   if (!loginForm.email.trim() || !loginForm.password.trim()) {
     toast.add({
       title: '请填写完整登录信息',
-      color: 'warning'
+      color: 'warning',
     })
     return
   }
@@ -43,7 +43,7 @@ async function handleLogin() {
   try {
     const payload = await loginAPI($api, {
       email: loginForm.email.trim(),
-      password: loginForm.password
+      password: loginForm.password,
     })
 
     userStore.applyAuth(payload)
@@ -52,14 +52,14 @@ async function handleLogin() {
     toast.add({
       title: '登录成功',
       description: '已同步当前用户信息，正在进入应用。',
-      color: 'success'
+      color: 'success',
     })
     emit('success')
   } catch (error) {
     toast.add({
       title: '登录失败',
       description: error instanceof Error ? error.message : '请稍后重试',
-      color: 'error'
+      color: 'error',
     })
   } finally {
     loading.value = false
@@ -68,13 +68,13 @@ async function handleLogin() {
 
 async function handleRegister() {
   if (
-    !registerForm.username.trim() ||
-    !registerForm.email.trim() ||
-    !registerForm.password.trim()
+    !registerForm.username.trim()
+    || !registerForm.email.trim()
+    || !registerForm.password.trim()
   ) {
     toast.add({
       title: '请填写完整注册信息',
-      color: 'warning'
+      color: 'warning',
     })
     return
   }
@@ -83,7 +83,7 @@ async function handleRegister() {
     toast.add({
       title: '两次密码不一致',
       description: '请确认后再提交注册。',
-      color: 'warning'
+      color: 'warning',
     })
     return
   }
@@ -94,12 +94,12 @@ async function handleRegister() {
     await registerAPI($api, {
       username: registerForm.username.trim(),
       email: registerForm.email.trim(),
-      password: registerForm.password
+      password: registerForm.password,
     })
 
     const payload = await loginAPI($api, {
       email: registerForm.email.trim(),
-      password: registerForm.password
+      password: registerForm.password,
     })
 
     userStore.applyAuth(payload)
@@ -108,14 +108,14 @@ async function handleRegister() {
     toast.add({
       title: '注册并登录成功',
       description: '当前账号已经写入本地登录态。',
-      color: 'success'
+      color: 'success',
     })
     emit('success')
   } catch (error) {
     toast.add({
       title: '注册失败',
       description: error instanceof Error ? error.message : '请稍后重试',
-      color: 'error'
+      color: 'error',
     })
   } finally {
     loading.value = false
@@ -127,7 +127,9 @@ async function handleRegister() {
   <section class="auth-panel surface-card">
     <div class="auth-panel__header">
       <span class="pill">Milestone 2</span>
-      <h2 class="auth-panel__title">{{ panelTitle }}</h2>
+      <h2 class="auth-panel__title">
+        {{ panelTitle }}
+      </h2>
       <p class="section-description">
         当前使用邮箱密码直接对接 NestJS 用户模块，后续如果补上微信能力，再在这一层做扩展。
       </p>
@@ -135,16 +137,16 @@ async function handleRegister() {
 
     <div class="auth-panel__tabs">
       <UButton
+        size="lg"
         :variant="mode === 'login' ? 'solid' : 'soft'"
-        @click="mode = 'login'"
-      >
+        @click="mode = 'login'">
         登录
       </UButton>
       <UButton
+        size="lg"
         :variant="mode === 'register' ? 'solid' : 'soft'"
         color="neutral"
-        @click="mode = 'register'"
-      >
+        @click="mode = 'register'">
         注册
       </UButton>
     </div>
@@ -176,8 +178,7 @@ async function handleRegister() {
         size="lg"
         :loading="loading"
         icon="i-lucide-log-in"
-        @click="handleLogin"
-      >
+        @click="handleLogin">
         登录并进入应用
       </UButton>
     </div>
@@ -228,8 +229,7 @@ async function handleRegister() {
         size="lg"
         :loading="loading"
         icon="i-lucide-user-plus"
-        @click="handleRegister"
-      >
+        @click="handleRegister">
         注册并自动登录
       </UButton>
     </div>
@@ -238,36 +238,53 @@ async function handleRegister() {
 
 <style scoped>
 .auth-panel {
+  display: grid;
+  gap: 24px;
   padding: clamp(24px, 4vw, 36px);
 }
 
 .auth-panel__header {
-  margin-bottom: 20px;
+  display: grid;
+  gap: 12px;
 }
 
 .auth-panel__title {
-  margin: 16px 0 12px;
+  margin: 4px 0 0;
   font-size: clamp(24px, 4vw, 32px);
 }
 
 .auth-panel__tabs {
   display: inline-flex;
   gap: 10px;
-  margin-bottom: 18px;
+  width: fit-content;
+  padding: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .auth-panel__form {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .auth-field {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .auth-field span {
   font-size: 14px;
   font-weight: 600;
+  color: var(--app-muted);
+}
+
+.auth-panel :deep(.ui-input) {
+  width: 100%;
+}
+
+.auth-panel :deep(.ui-button) {
+  justify-content: center;
 }
 </style>
