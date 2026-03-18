@@ -4,6 +4,7 @@ import type {
   SseConnection,
   SseRequestOptions
 } from '~/types/api'
+import type { InterviewMessage } from '~/types/domain'
 
 const ssePost = (
   path: string,
@@ -101,6 +102,39 @@ const ssePost = (
 }
 
 /**
+ * 分析简历
+ */
+export const analyzeResumeAPI = (
+  $api: ApiClient,
+  body: {
+    resume: string
+    jobDescription: string
+    position: string
+  }
+) => {
+  return $api('/interview/analyze-resume', {
+    method: 'POST',
+    body
+  })
+}
+
+/**
+ * 继续追问
+ */
+export const continueConversationAPI = (
+  $api: ApiClient,
+  body: {
+    sessionId: string
+    question: string
+  }
+) => {
+  return $api('/interview/continue-conversation', {
+    method: 'POST',
+    body
+  })
+}
+
+/**
  * 处理简历押题 - 题目 + 答案 + 分析
  */
 export const generateResumeQuizSSE = (
@@ -117,6 +151,11 @@ export const getAnalysisReportAPI = ($api: ApiClient, resultId: string) => {
   return $api(`/interview/analysis/report/${resultId}`, {
     method: 'GET'
   })
+}
+
+export interface AnalysisConversationResponse {
+  response: string
+  messages?: InterviewMessage[]
 }
 
 /**

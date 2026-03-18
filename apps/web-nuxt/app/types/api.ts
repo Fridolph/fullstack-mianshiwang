@@ -1,4 +1,5 @@
 import type { $Fetch, FetchOptions } from 'ofetch'
+import type { ResumeQuizResultPayload } from '~/types/domain'
 
 export interface ApiEnvelope<T> {
   code: number
@@ -34,6 +35,6 @@ export interface ResumeQuizProgressEvent {
   label?: string
   message?: string
   stage?: 'prepare' | 'generating' | 'saving' | 'done'
-  data?: unknown
+  data?: ResumeQuizResultPayload
   error?: string
 }

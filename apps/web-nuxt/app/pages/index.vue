@@ -10,13 +10,13 @@ const milestones = [
     title: '里程碑 2',
     subtitle: '用户与认证能力迁移',
     description:
-      '迁移登录、用户信息、鉴权中间件和 token 持久化，先把共享业务基础层跑通。'
+      '登录、注册、用户信息同步、鉴权跳转与个人中心基础能力已经接入。'
   },
   {
     title: '里程碑 3',
     subtitle: '简历分析与押题主链路',
     description:
-      '对接 NestJS 接口，完成简历分析、简历押题和 SSE 流式进度展示。'
+      '已接入简历分析、继续追问、简历押题开始页与结果页骨架，并打通前端状态流转。'
   }
 ]
 </script>
@@ -29,14 +29,18 @@ const milestones = [
       <p class="section-description">
         当前前端以 monorepo 中的 <code>apps/web-nuxt</code> 为主工程，
         参考上一级目录中的旧 Nuxt 项目，逐步迁入业务模块，并同步沉淀迁移记录与踩坑经验。
+        当前已经完成基础设施、用户认证、个人中心、历史记录和 AI 面试主链路的前端承接。
       </p>
 
       <div class="hero__actions">
         <NuxtLink to="/login">
-          <UButton size="lg">查看登录页骨架</UButton>
+          <UButton size="lg">进入登录 / 注册</UButton>
         </NuxtLink>
-        <NuxtLink to="/interview">
-          <UButton size="lg" color="neutral" variant="soft">查看面试模块占位页</UButton>
+        <NuxtLink to="/interview/start">
+          <UButton size="lg" color="neutral" variant="soft">进入 AI 面试开始页</UButton>
+        </NuxtLink>
+        <NuxtLink to="/history">
+          <UButton size="lg" color="neutral" variant="ghost">查看历史记录</UButton>
         </NuxtLink>
       </div>
     </div>

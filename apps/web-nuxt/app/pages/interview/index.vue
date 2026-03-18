@@ -1,18 +1,47 @@
+<script setup lang="ts">
+import InterviewServiceCards from '~/components/interview/InterviewServiceCards.vue'
+
+const userStore = useUserStore()
+</script>
+
 <template>
   <section class="surface-card interview-page">
-    <div class="interview-page__body">
-      <span class="pill">核心业务模块</span>
-      <h1 class="section-title">面试模块迁移准备完成</h1>
-      <p class="section-description">
-        这一页是后续迁移简历分析、简历押题、SSE 流式进度和报告页的业务入口。
-        当前先完成基础路由和页面占位，后续会逐步接入实际功能。
-      </p>
+    <div class="interview-page__hero">
+      <div>
+        <span class="pill">核心业务链路</span>
+        <h1 class="section-title">开始你的 AI 面试学习闭环</h1>
+        <p class="section-description">
+          这里不再停留在占位页，而是正式承接当前 NestJS 后端的简历分析、继续追问、流式押题和历史记录能力。
+        </p>
+      </div>
+
+      <div class="interview-page__actions">
+        <NuxtLink :to="userStore.isLogin ? '/interview/start' : '/login?redirect=/interview/start'">
+          <UButton size="lg" icon="i-lucide-sparkles">
+            {{ userStore.isLogin ? '开始体验' : '先登录后体验' }}
+          </UButton>
+        </NuxtLink>
+        <NuxtLink to="/history">
+          <UButton size="lg" color="neutral" variant="soft">
+            查看历史记录
+          </UButton>
+        </NuxtLink>
+      </div>
     </div>
   </section>
+
+  <InterviewServiceCards />
 </template>
 
 <style scoped>
-.interview-page__body {
+.interview-page__hero {
   padding: clamp(28px, 5vw, 48px);
+}
+
+.interview-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
 }
 </style>

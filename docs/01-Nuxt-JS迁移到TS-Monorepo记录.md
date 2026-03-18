@@ -377,6 +377,222 @@ JS -> TS 迁移要点：
 - 进入第 2 步，开始迁移用户与认证基础能力
 - 重点处理登录 API、用户 store、鉴权中间件和登录页实际交互
 
+## 第 2 步 - 用户与认证基础能力迁移
+
+日期：
+
+- 2026-03-18
+
+目标：
+
+- 让 `apps/web-nuxt` 不再停留在“登录占位页”，而是正式接上当前 NestJS 后端已经具备的用户注册、登录、读取资料和更新资料能力
+
+参考来源：
+
+- `mianshiwang-nuxt/app/pages/login.vue`
+- `mianshiwang-nuxt/app/stores/user.js`
+- `mianshiwang-nuxt/app/middleware/auth.js`
+- `apps/ww-server/src/user/user.controller.ts`
+- `apps/ww-server/src/user/user.service.ts`
+
+修改文件：
+
+- `apps/web-nuxt/app/api/login.ts`
+- `apps/web-nuxt/app/api/user.ts`
+- `apps/web-nuxt/app/stores/user.ts`
+- `apps/web-nuxt/app/middleware/auth.ts`
+- `apps/web-nuxt/app/layouts/default.vue`
+- `apps/web-nuxt/app/app.vue`
+- `apps/web-nuxt/app/types/domain.ts`
+- `apps/web-nuxt/app/components/auth/AuthBenefitsPanel.vue`
+- `apps/web-nuxt/app/components/auth/AuthCredentialPanel.vue`
+- `apps/web-nuxt/app/components/profile/ProfileSummaryCard.vue`
+- `apps/web-nuxt/app/components/profile/ProfileAccountForm.vue`
+- `apps/web-nuxt/app/pages/login.vue`
+- `apps/web-nuxt/app/pages/profile.vue`
+
+本次迁移内容：
+
+- 把登录逻辑从旧项目里的“微信扫码假设”切换为当前后端已经真实存在的“邮箱密码登录”
+- 增加注册、登录、用户信息同步、资料更新的前端闭环
+- 在 layout 中接入登录态展示与退出登录
+- 为受保护页面增加 `requiresAuth + middleware: 'auth'` 的路由保护方式
+- 新增个人中心页面，承接当前用户信息与服务次数展示
+
+为什么这一步重要：
+
+- 前端只有先把用户态跑通，后面的简历押题、历史记录、结果页才有稳定身份上下文
+- 参考项目虽然更完整，但它依赖的是另一套微信登录后端能力，当前仓库并没有实现对应接口
+- 如果不及时把前端与当前 Nest 后端对齐，后面会一直出现“前端代码有，但接口根本不存在”的假联调状态
+
+遇到的问题：
+
+- 参考项目中的登录接口是 `wechat/qrcode`、`check-qr-status` 等微信流，当前后端 `WechatController` 还是空壳
+- 当前后端真正可用的是 `user/register`、`user/login`、`user/info`、`user/profile`
+- 旧中间件逻辑依赖弹窗式鉴权提示，但 monorepo 前端目前没有对应的全局鉴权弹窗组件
+
+解决方式：
+
+- 直接把 `app/api/login.ts` 改为面向当前后端的注册/登录接口
+- 保留旧微信函数名作为“迁移期兼容占位”，但明确抛出友好错误，避免误用
+- 把中间件收敛为最小可用方案：未登录直接跳转 `/login?redirect=...`
+- 通过 `userStore.ensureUserProfile()` 统一处理 token 存在但资料未加载的情况
+- 在 `app.vue` 中补上 `UApp`，让 Nuxt UI 的 toast、overlay 等能力可正常工作
+
+JS -> TS 迁移要点：
+
+- 用户状态比 UI 更应该优先类型化，因为它会贯穿登录、权限、历史、面试、报告多个模块
+- 与其在页面里到处写 `any`，不如优先补齐 `AuthPayload`、`LoginPayload`、`RegisterPayload`、`UserInfo`
+- store 的持久化字段最好显式声明 `pick`，不要把临时 UI 状态一起持久化进 localStorage
+
+本地验证方式：
+
+- 执行 `pnpm --filter @mianshiwang/client typecheck`，通过
+- 执行 `pnpm --filter @mianshiwang/client build`，通过
+- 启动本地 dev server 后，访问 `/login`
+- 访问 `/profile`、`/history`、`/interview/start` 时，未登录会自动跳回 `/login?redirect=...`
+
+下一步待做内容：
+
+- 进入第 3 步，把当前后端已经存在的简历分析、继续追问和简历押题流式接口接入前端
+
+## 第 3 步 - 简历分析与押题主链路迁移
+
+日期：
+
+- 2026-03-18
+
+目标：
+
+- 把当前学习主线里的 AI 面试能力真正接到前端页面上，而不是只保留“面试入口”占位页
+
+参考来源：
+
+- `mianshiwang-nuxt/app/pages/interview/index.vue`
+- `mianshiwang-nuxt/app/pages/interview/start.vue`
+- `mianshiwang-nuxt/app/pages/interview/report.vue`
+- `apps/ww-server/src/interview/interview.controller.ts`
+- `apps/ww-server/src/interview/dto/resume-quiz.dto.ts`
+
+修改文件：
+
+- `apps/web-nuxt/app/api/interview.ts`
+- `apps/web-nuxt/app/types/api.ts`
+- `apps/web-nuxt/app/stores/interview.ts`
+- `apps/web-nuxt/app/components/interview/InterviewServiceCards.vue`
+- `apps/web-nuxt/app/components/interview/ResumeQuizFormCard.vue`
+- `apps/web-nuxt/app/components/interview/ResumeQuizProgressCard.vue`
+- `apps/web-nuxt/app/components/interview/ResumeAnalysisCard.vue`
+- `apps/web-nuxt/app/components/interview/ResumeQuizResultCard.vue`
+- `apps/web-nuxt/app/pages/interview/index.vue`
+- `apps/web-nuxt/app/pages/interview/start.vue`
+- `apps/web-nuxt/app/pages/interview/report.vue`
+
+本次迁移内容：
+
+- 为前端补齐 `analyze-resume`、`continue-conversation`、`resume/quiz/stream` 三条接口能力
+- 新增面试入口页，不再是占位说明，而是业务入口与服务卡片
+- 新增开始页，支持填写公司、岗位、薪资、JD、简历文本、简历 URL
+- 新增简历分析区，可以看到 AI 原始结构化结果，并继续向 AI 追问
+- 新增流式押题进度展示区，承接 SSE 事件并写入 interview store
+- 新增结果页，用于回看最近一次流式完成事件返回的数据
+
+为什么这一步重要：
+
+- 这是前端真正开始承接 AI 业务链路的一步，能把“页面迁移”变成“接口联调”
+- 用户体验上，也第一次从“进入页面”走到了“填写输入 -> 看 AI 返回 -> 看流式进度 -> 看结果”
+- 架构上，这一步也证明了前端状态设计是否合理：分析结果、会话 ID、追问消息、流式进度、最终结果都需要组织起来
+
+遇到的问题：
+
+- 当前后端还没有独立的简历管理模块，因此不能照搬旧项目的“选择已上传简历”模式
+- 当前后端虽然已经有 `resume/quiz/stream` 路由和消费记录模型，但结果生成仍处于学习中的骨架阶段
+- 当前后端尚未补齐真正的“结果详情查询接口”，所以历史记录暂时只能看消费记录，不能回查完整报告
+
+解决方式：
+
+- 开始页优先支持“直接粘贴简历文本”，这是和当前 Nest DTO 最稳定的对接方式
+- 结果页优先读取 interview store 里最近一次流式完成事件的数据
+- 在结果组件中明确提示：如果题目为空，说明当前后端骨架已打通，但 AI 生成内容尚未真正落库
+- 保留简历 URL 字段，为后续接 OSS / 文档解析预留位置
+
+JS -> TS 迁移要点：
+
+- SSE 事件的类型必须先定义，否则流式处理很容易退化成一堆无约束字符串
+- 面试模块的 store 不仅要存“最终结果”，还要存过程状态：`analysis`、`sessionId`、`messages`、`progressLogs`、`currentProgress`
+- 旧项目里很多页面逻辑写在同一个页面中，迁移到 TS 后更适合先拆成 `FormCard`、`AnalysisCard`、`ProgressCard`、`ResultCard`
+
+本地验证方式：
+
+- 执行 `pnpm --filter @mianshiwang/client typecheck`，通过
+- 执行 `pnpm --filter @mianshiwang/client build`，通过
+- 本地启动 dev server 后，访问 `/interview`
+- 未登录访问 `/interview/start` 时，会被中间件重定向到登录页
+- 已确认面试入口页、开始页、结果页可以正常构建与路由
+
+下一步待做内容：
+
+- 继续补齐“历史记录 -> 结果详情”闭环，或者同步补后端结果查询接口
+
+## 第 4 步 - 个人中心与历史记录承接
+
+日期：
+
+- 2026-03-18
+
+目标：
+
+- 把当前后端已经存在的用户资料和消费记录能力承接到前端中，补齐用户可回看、可维护的信息面板
+
+参考来源：
+
+- `mianshiwang-nuxt/app/pages/profile.vue`
+- `mianshiwang-nuxt/app/pages/history.vue`
+- `apps/ww-server/src/user/user.controller.ts`
+- `apps/ww-server/src/interview/schemas/consumption-record.schema.ts`
+
+修改文件：
+
+- `apps/web-nuxt/app/components/history/ConsumptionRecordList.vue`
+- `apps/web-nuxt/app/pages/history.vue`
+- `apps/web-nuxt/app/pages/profile.vue`
+
+本次迁移内容：
+
+- 增加历史记录页，接入后端 `GET /user/consumption-records`
+- 增加前端侧的本地筛选：全部、简历押题、专项面试、HR / 行测
+- 增加个人中心页，展示当前用户昵称、邮箱、旺旺币余额与剩余服务次数
+- 增加资料编辑表单，直接调用 `PUT /user/profile`
+
+为什么这一步重要：
+
+- 到这里，前端就不再只是“能登录 + 能进面试页”，而是有了基本完整的用户视角
+- 用户能看到自己的剩余次数与历史消费记录，才更像一个真实业务应用
+- 对学习来说，这一步非常适合帮助理解“用户模块”和“业务消费记录模块”如何在前端会合
+
+遇到的问题：
+
+- 当前后端还没有真正的“按 resultId 查完整报告”的接口
+- 当前后端也还没有单独的简历管理模块，所以个人中心里不能像旧项目那样完整管理简历列表
+
+解决方式：
+
+- 历史页先接稳定存在的消费记录接口，不强行伪造报告详情
+- 个人中心先聚焦当前后端已有字段：昵称、邮箱、手机号、头像、余额、剩余次数
+- 把“后续可补能力”在页面文案里明确说明，便于继续学习迭代
+
+JS -> TS 迁移要点：
+
+- 历史记录页里最先应该类型化的是“服务类型”“状态”“输入输出数据的基础结构”
+- 这类页面经常来自后端聚合查询，因此宁可先定义“最小可用类型”，也不要等到字段 100% 完整再开始
+
+本地验证方式：
+
+- 执行 `pnpm --filter @mianshiwang/client typecheck`，通过
+- 执行 `pnpm --filter @mianshiwang/client build`，通过
+- 访问 `/history`、`/profile` 时，未登录会被重定向到登录页
+- 本地 dev server 下已验证路由与页面渲染正常
+
 ## 阶段里程碑规划
 
 下面这部分是当前确认后的执行路线。后续每完成一个阶段，都要补记录、补验证结果、补踩坑说明。

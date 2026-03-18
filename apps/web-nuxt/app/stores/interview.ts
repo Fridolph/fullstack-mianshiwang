@@ -1,10 +1,21 @@
 import { defineStore } from 'pinia'
+import type { ResumeQuizProgressEvent } from '~/types/api'
 import type {
   InterviewMessage,
   InterviewReport,
   InterviewServiceType,
   PositionSelection
 } from '~/types/domain'
+
+interface ResumeQuizDraft {
+  company: string
+  positionName: string
+  minSalary: number | null
+  maxSalary: number | null
+  jd: string
+  resumeContent: string
+  resumeURL: string
+}
 
 interface InterviewState {
   currentStep: number
@@ -17,6 +28,11 @@ interface InterviewState {
   resultId: string | null
   sessionId: string | null
   report: InterviewReport | null
+  analysis: Record<string, unknown> | null
+  progressLogs: ResumeQuizProgressEvent[]
+  currentProgress: ResumeQuizProgressEvent | null
+  lastError: string
+  quizDraft: ResumeQuizDraft
 }
 
 export const useInterviewStore = defineStore(
@@ -32,7 +48,20 @@ export const useInterviewStore = defineStore(
       messages: [],
       resultId: null,
       sessionId: null,
-      report: null
+      report: null,
+      analysis: null,
+      progressLogs: [],
+      currentProgress: null,
+      lastError: '',
+      quizDraft: {
+        company: '',
+        positionName: '',
+        minSalary: null,
+        maxSalary: null,
+        jd: '',
+        resumeContent: '',
+        resumeURL: ''
+      }
     }),
     getters: {
       resumeType: (state) => {
@@ -62,11 +91,36 @@ export const useInterviewStore = defineStore(
         this.sessionId = sessionId
         this.resultId = resultId ?? this.resultId
       },
+      setAnalysis(analysis: Record<string, unknown> | null, sessionId?: string | null) {
+        this.analysis = analysis
+        if (sessionId !== undefined) {
+          this.sessionId = sessionId
+        }
+      },
       addMessage(message: InterviewMessage) {
         this.messages.push(message)
       },
       setReport(report: InterviewReport | null) {
         this.report = report
+      },
+      setQuizDraft(payload: Partial<ResumeQuizDraft>) {
+        this.quizDraft = {
+          ...this.quizDraft,
+          ...payload
+        }
+        this.resumeText = this.quizDraft.resumeContent
+      },
+      pushProgressLog(event: ResumeQuizProgressEvent) {
+        this.currentProgress = event
+        this.progressLogs.push(event)
+      },
+      setLastError(message: string) {
+        this.lastError = message
+      },
+      resetProgress() {
+        this.progressLogs = []
+        this.currentProgress = null
+        this.lastError = ''
       },
       resetInterview() {
         this.interviewStatus = 'idle'
@@ -74,6 +128,8 @@ export const useInterviewStore = defineStore(
         this.resultId = null
         this.sessionId = null
         this.report = null
+        this.analysis = null
+        this.resetProgress()
       },
       resetAll() {
         this.currentStep = 1
@@ -81,9 +137,30 @@ export const useInterviewStore = defineStore(
         this.selectedPosition = null
         this.resumeId = null
         this.resumeText = ''
+        this.quizDraft = {
+          company: '',
+          positionName: '',
+          minSalary: null,
+          maxSalary: null,
+          jd: '',
+          resumeContent: '',
+          resumeURL: ''
+        }
         this.resetInterview()
       }
     },
-    persist: true
+    persist: {
+      pick: [
+        'selectedService',
+        'selectedPosition',
+        'resumeId',
+        'resumeText',
+        'resultId',
+        'sessionId',
+        'report',
+        'analysis',
+        'quizDraft'
+      ]
+    }
   }
 )
