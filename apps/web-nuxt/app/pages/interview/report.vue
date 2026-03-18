@@ -20,14 +20,8 @@ const interviewStore = useInterviewStore()
       </p>
 
       <div class="report-page__actions">
-        <NuxtLink to="/interview/start">
-          <UButton icon="i-lucide-arrow-left">返回继续练习</UButton>
-        </NuxtLink>
-        <NuxtLink to="/history">
-          <UButton color="neutral" variant="soft">
-            查看历史记录
-          </UButton>
-        </NuxtLink>
+        <UButton icon="i-lucide-arrow-left" to="/interview/start">返回继续练习</UButton>
+        <UButton color="neutral" variant="soft" to="/history">查看历史记录</UButton>
       </div>
     </div>
 

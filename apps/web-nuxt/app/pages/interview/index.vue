@@ -16,16 +16,16 @@ const userStore = useUserStore()
       </div>
 
       <div class="interview-page__actions">
-        <NuxtLink :to="userStore.isLogin ? '/interview/start' : '/login?redirect=/interview/start'">
-          <UButton size="lg" icon="i-lucide-sparkles">
-            {{ userStore.isLogin ? '开始体验' : '先登录后体验' }}
-          </UButton>
-        </NuxtLink>
-        <NuxtLink to="/history">
-          <UButton size="lg" color="neutral" variant="soft">
-            查看历史记录
-          </UButton>
-        </NuxtLink>
+        <UButton
+          size="lg"
+          icon="i-lucide-sparkles"
+          :to="userStore.isLogin ? '/interview/start' : '/login?redirect=/interview/start'"
+        >
+          {{ userStore.isLogin ? '开始体验' : '先登录后体验' }}
+        </UButton>
+        <UButton size="lg" color="neutral" variant="soft" to="/history">
+          查看历史记录
+        </UButton>
       </div>
     </div>
   </section>

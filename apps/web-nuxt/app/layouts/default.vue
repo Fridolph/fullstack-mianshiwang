@@ -6,7 +6,7 @@ const $api = useApiClient()
 const userStore = useUserStore()
 
 const navItems = [
-  { label: '迁移记录', to: '/' },
+  { label: '迁移记录', to: '/migration-notes' },
   { label: '面试入口', to: '/interview' },
   { label: '历史记录', to: '/history' },
   { label: '个人中心', to: '/profile' }
@@ -48,27 +48,30 @@ async function handleLogout() {
           <span class="app-shell__brand-mark">MW</span>
           <span class="app-shell__brand-copy">
             <span>{{ config.public.appName }}</span>
-            <span class="app-shell__brand-subtitle">Nuxt monorepo 迁移中</span>
+            <span class="app-shell__brand-subtitle">AI 面试练习平台</span>
           </span>
         </NuxtLink>
 
         <nav class="app-shell__nav" aria-label="主导航">
-          <NuxtLink
+          <UButton
             v-for="item in navItems"
             :key="item.to"
+            color="neutral"
+            variant="ghost"
             :to="item.to"
           >
-            <UButton color="neutral" variant="ghost">
-              {{ item.label }}
-            </UButton>
-          </NuxtLink>
+            {{ item.label }}
+          </UButton>
 
           <template v-if="userStore.isLogin">
-            <NuxtLink to="/profile">
-              <UButton color="primary" variant="soft" icon="i-lucide-user-round">
-                {{ userDisplayName }}
-              </UButton>
-            </NuxtLink>
+            <UButton
+              color="primary"
+              variant="soft"
+              icon="i-lucide-user-round"
+              to="/profile"
+            >
+              {{ userDisplayName }}
+            </UButton>
             <UButton
               color="neutral"
               variant="outline"
@@ -79,11 +82,14 @@ async function handleLogout() {
             </UButton>
           </template>
 
-          <NuxtLink v-else to="/login">
-            <UButton color="primary" icon="i-lucide-log-in">
-              登录 / 注册
-            </UButton>
-          </NuxtLink>
+          <UButton
+            v-else
+            color="primary"
+            icon="i-lucide-log-in"
+            to="/login"
+          >
+            登录 / 注册
+          </UButton>
         </nav>
       </div>
     </header>
