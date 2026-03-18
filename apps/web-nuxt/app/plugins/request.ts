@@ -1,6 +1,7 @@
 import type { ApiClient, ApiEnvelope } from '~/types/api'
 import { useUserStore } from '~/stores/user'
 
+// 用运行时判断把后端通用响应结构缩窄成 ApiEnvelope，避免业务层自己到处写类型断言。
 function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
   return (
     typeof value === 'object' &&
@@ -14,6 +15,14 @@ function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
 export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig()
 
+  /**
+   * 统一请求客户端。
+   *
+   * 它负责 3 件事：
+   * 1. 自动拼接 baseURL
+   * 2. 自动挂 Bearer Token
+   * 3. 自动把 { code, message, data } 拆成业务真正关心的 data
+   */
   const api = $fetch.create({
     baseURL: config.public.apiBase,
     credentials: 'include',
@@ -29,6 +38,7 @@ export default defineNuxtPlugin(() => {
       options.headers = headers
     },
     onResponse({ response }) {
+      // 有些接口未来可能不是标准包裹结构，这里直接放行，兼容后续扩展。
       if (!isApiEnvelope(response._data)) return
 
       if (response._data.code === 200) {
@@ -54,6 +64,7 @@ export default defineNuxtPlugin(() => {
         userStore.logout()
       }
 
+      // 统一把 HTTP 层错误转成 Error，保证页面侧只处理一种错误形态。
       throw new Error(message)
     }
   })

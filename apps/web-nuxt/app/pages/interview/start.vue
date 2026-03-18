@@ -37,6 +37,7 @@ const currentProgress = computed(() => interviewStore.currentProgress)
 const progressLogs = computed(() => interviewStore.progressLogs)
 const errorMessage = computed(() => interviewStore.lastError)
 
+// 当前开始页直接对着后端 DTO 做最小校验，避免无效请求进入服务端。
 function validateForm() {
   if (!formState.value.positionName.trim()) return '请先填写目标岗位'
   if (formState.value.jd.trim().length < 50) return '岗位 JD 至少需要 50 个字符'
@@ -46,6 +47,7 @@ function validateForm() {
   return ''
 }
 
+// 第一步：先做简历分析，获取 analysis + sessionId，后续才能继续追问。
 async function handleAnalyzeResume() {
   const validationMessage = validateForm()
   if (validationMessage) {
@@ -82,6 +84,7 @@ async function handleAnalyzeResume() {
   }
 }
 
+// 第二步：基于 analyze-resume 返回的 sessionId 做多轮继续追问。
 async function handleAskFollowUp(question: string) {
   if (!interviewStore.sessionId) return
 
@@ -114,12 +117,14 @@ async function handleAskFollowUp(question: string) {
   }
 }
 
+// 重新发起流式请求前，先关闭旧连接并清空上一次的进度痕迹。
 function resetStreamState() {
   activeConnection.value?.close()
   interviewStore.resetProgress()
   interviewStore.setLastError('')
 }
 
+// 当前结果页除了展示后端返回结果，也要补上开始页里的输入上下文。
 function normalizeCompletePayload(event: ResumeQuizProgressEvent) {
   return {
     ...event.data,
@@ -131,6 +136,15 @@ function normalizeCompletePayload(event: ResumeQuizProgressEvent) {
   }
 }
 
+/**
+ * 第三步：发起 SSE 简历押题。
+ *
+ * 这里是当前前端最核心的一段业务编排：
+ * - 构造 requestId，满足后端幂等性设计
+ * - 建立 SSE 连接
+ * - 把 progress / complete / error 分发到 store
+ * - complete 后跳转结果页
+ */
 async function handleGenerateQuiz() {
   const validationMessage = validateForm()
   if (validationMessage) {
@@ -206,6 +220,7 @@ async function handleGenerateQuiz() {
   )
 }
 
+// 页面离开时手动关闭 SSE，避免旧连接继续向已销毁组件推送事件。
 onBeforeUnmount(() => {
   activeConnection.value?.close()
 })

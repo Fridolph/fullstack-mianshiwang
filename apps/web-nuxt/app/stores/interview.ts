@@ -7,6 +7,10 @@ import type {
   PositionSelection
 } from '~/types/domain'
 
+/**
+ * 开始页表单草稿。
+ * 它既是页面表单状态，也是后续发起接口时的原始输入。
+ */
 interface ResumeQuizDraft {
   company: string
   positionName: string
@@ -17,6 +21,14 @@ interface ResumeQuizDraft {
   resumeURL: string
 }
 
+/**
+ * 面试 store 是当前前端最复杂的业务状态之一。
+ *
+ * 它同时承接了 3 个阶段的数据：
+ * 1. 输入阶段：quizDraft / selectedPosition
+ * 2. 过程阶段：analysis / messages / progressLogs
+ * 3. 结果阶段：report / resultId
+ */
 interface InterviewState {
   currentStep: number
   interviewStatus: 'idle' | 'starting' | 'in_progress' | 'suspend' | 'ended'
@@ -91,6 +103,7 @@ export const useInterviewStore = defineStore(
         this.sessionId = sessionId
         this.resultId = resultId ?? this.resultId
       },
+      // 简历分析接口返回后，把分析结果与会话 ID 一起存起来，方便继续追问。
       setAnalysis(analysis: Record<string, unknown> | null, sessionId?: string | null) {
         this.analysis = analysis
         if (sessionId !== undefined) {
@@ -103,6 +116,7 @@ export const useInterviewStore = defineStore(
       setReport(report: InterviewReport | null) {
         this.report = report
       },
+      // 表单草稿和 resumeText 保持联动，避免页面和 store 出现“双份状态”。
       setQuizDraft(payload: Partial<ResumeQuizDraft>) {
         this.quizDraft = {
           ...this.quizDraft,
@@ -110,6 +124,7 @@ export const useInterviewStore = defineStore(
         }
         this.resumeText = this.quizDraft.resumeContent
       },
+      // 每收到一个 SSE 事件，都顺序写入时间线，同时更新当前进度。
       pushProgressLog(event: ResumeQuizProgressEvent) {
         this.currentProgress = event
         this.progressLogs.push(event)
@@ -122,6 +137,7 @@ export const useInterviewStore = defineStore(
         this.currentProgress = null
         this.lastError = ''
       },
+      // 只重置“本次面试运行态”，不清理用户之前在表单里输入的内容。
       resetInterview() {
         this.interviewStatus = 'idle'
         this.messages = []
@@ -131,6 +147,7 @@ export const useInterviewStore = defineStore(
         this.analysis = null
         this.resetProgress()
       },
+      // 回到初始状态时，连输入草稿一并清理。
       resetAll() {
         this.currentStep = 1
         this.selectedService = null

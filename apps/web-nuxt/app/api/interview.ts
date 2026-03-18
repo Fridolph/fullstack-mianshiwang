@@ -6,6 +6,14 @@ import type {
 } from '~/types/api'
 import type { InterviewMessage } from '~/types/domain'
 
+/**
+ * 用 fetch 手动实现“POST + SSE”。
+ *
+ * 原因：
+ * - EventSource 天然更适合 GET
+ * - 当前后端简历押题接口是 POST
+ * - 所以前端需要自己读取 ReadableStream，并逐行解析 `data: ...`
+ */
 const ssePost = (
   path: string,
   params: Record<string, unknown>,
@@ -55,6 +63,7 @@ const ssePost = (
       const decoder = new TextDecoder()
       let buffer = ''
 
+      // 服务端按 SSE 协议不断推送 `data: ...\n\n`，这里前端手动按行切片。
       while (true) {
         const { done, value } = await reader.read()
 

@@ -1,3 +1,7 @@
+/**
+ * 用户在前端看到的简历摘要。
+ * 后续通常用于“简历列表 / 简历选择器 / 简历管理页”。
+ */
 export interface ResumeSummary {
   resumeId: string
   resumeName: string
@@ -5,6 +9,12 @@ export interface ResumeSummary {
   uploadTime?: string
 }
 
+/**
+ * 当前前端统一使用的用户信息结构。
+ *
+ * 它不是 Mongo 用户 Schema 的完整镜像，
+ * 而是“当前页面、store、组件真正会消费到的字段集合”。
+ */
 export interface UserInfo {
   _id?: string
   username?: string
@@ -23,22 +33,47 @@ export interface UserInfo {
   [key: string]: unknown
 }
 
+/**
+ * 登录成功后后端返回的核心数据：
+ * - token: 供后续请求挂到 Authorization
+ * - user: 当前登录用户的基础信息
+ */
 export interface AuthPayload {
   token: string
   user: UserInfo
 }
 
+/**
+ * 登录表单提交给后端的数据结构。
+ */
 export interface LoginPayload {
   email: string
   password: string
 }
 
+/**
+ * 注册表单提交给后端的数据结构。
+ * 这里直接复用登录字段，再额外补一个 username。
+ */
 export interface RegisterPayload extends LoginPayload {
   username: string
 }
 
+/**
+ * 当前消费记录在前端只关心三种状态：
+ * - pending: 处理中
+ * - success: 成功
+ * - failed: 失败
+ */
 export type ConsumptionStatus = 'pending' | 'success' | 'failed'
 
+/**
+ * 用户服务消费记录。
+ *
+ * 对当前项目来说，它是一份重要的“业务中间结果”：
+ * - 历史页展示依赖它
+ * - 后续结果详情页也会通过 resultId 继续往下关联
+ */
 export interface ConsumptionRecord {
   _id?: string
   recordId?: string
@@ -65,6 +100,10 @@ export interface ConsumptionRecord {
   [key: string]: unknown
 }
 
+/**
+ * 后端对消费记录做聚合统计后的结果。
+ * 当前前端还没有完整展示，但先把契约保留下来，后续扩展会更顺手。
+ */
 export interface ConsumptionStats {
   _id: string
   count: number
@@ -73,13 +112,30 @@ export interface ConsumptionStats {
   totalCost: number
 }
 
+/**
+ * 历史记录页当前消费的接口返回结构。
+ */
 export interface ConsumptionRecordsResponse {
   records: ConsumptionRecord[]
   stats: ConsumptionStats[]
 }
 
+/**
+ * 面试服务类型。
+ * 当前前端沿用了旧项目中的业务抽象：
+ * - resume: 简历押题
+ * - special: 专项面试
+ * - behavior: HR / 行测
+ */
 export type InterviewServiceType = 'resume' | 'special' | 'behavior' | null
 
+/**
+ * 用户在“开始面试”前选择或填写的岗位信息。
+ * 这份结构会同时影响：
+ * - 简历分析输入
+ * - 简历押题输入
+ * - 后续结果页展示
+ */
 export interface PositionSelection {
   category?: string
   company?: string
@@ -92,6 +148,10 @@ export interface PositionSelection {
   positionName?: string
 }
 
+/**
+ * 多轮对话中的消息结构。
+ * 现在主要用于“分析后继续追问”的消息面板。
+ */
 export interface InterviewMessage {
   role: string
   content: string
@@ -99,6 +159,10 @@ export interface InterviewMessage {
   [key: string]: unknown
 }
 
+/**
+ * 单个押题问题的数据结构。
+ * 如果后端后续补齐真实 AI 结果，这里会成为结果页和练习页最核心的数据模型之一。
+ */
 export interface ResumeQuizQuestion {
   question: string
   answer: string
@@ -109,6 +173,14 @@ export interface ResumeQuizQuestion {
   reasoning?: string
 }
 
+/**
+ * 简历押题 / 结果页 / SSE 完成事件共享的结果载荷。
+ *
+ * 单独抽类型的目的，是让以下三处数据保持同一种理解：
+ * - SSE complete 事件
+ * - store 中的 report
+ * - 将来单独的结果详情接口
+ */
 export interface ResumeQuizResultPayload {
   resultId?: string
   questions: ResumeQuizQuestion[]
@@ -138,6 +210,10 @@ export interface ResumeQuizResultPayload {
   interviewTips?: string[]
 }
 
+/**
+ * 结果页展示模型。
+ * 在通用结果载荷上，再补充页面自己需要的输入上下文。
+ */
 export interface InterviewReport extends ResumeQuizResultPayload {
   company?: string
   position?: string
