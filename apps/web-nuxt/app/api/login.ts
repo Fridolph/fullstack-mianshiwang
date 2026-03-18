@@ -1,32 +1,37 @@
 import type { ApiClient } from '~/types/api'
+import type { LoginPayload, RegisterPayload } from '~/types/domain'
 
 /**
- * 生成微信扫码登录二维码
- * @returns {Promise}
+ * 邮箱密码登录
  */
-export const generateWechatQRCodeAPI = ($api: ApiClient) => {
-  return $api('/wechat/qrcode', {
-    method: 'POST'
+export const loginAPI = ($api: ApiClient, body: LoginPayload) => {
+  return $api('/user/login', {
+    method: 'POST',
+    body
   })
 }
 
 /**
- * 检查微信扫码状态
- * @param {string} qrCodeId 二维码ID
- * @returns {Promise}
+ * 注册账号
  */
+export const registerAPI = ($api: ApiClient, body: RegisterPayload) => {
+  return $api('/user/register', {
+    method: 'POST',
+    body
+  })
+}
+
+/**
+ * 兼容旧前端迁移期保留
+ */
+export const generateWechatQRCodeAPI = (_$api: ApiClient) =>
+  Promise.reject(new Error('当前后端未提供微信扫码登录接口，请使用邮箱密码登录'))
+
 export const checkWechatQRCodeStatusAPI = (
-  $api: ApiClient,
-  qrCodeId: string
-) => {
-  return $api(`/wechat/check-qr-status?id=${qrCodeId}`, {
-    method: 'GET'
-  })
-}
+  _$api: ApiClient,
+  _qrCodeId: string
+) =>
+  Promise.reject(new Error('当前后端未提供微信扫码登录接口，请使用邮箱密码登录'))
 
-/**
- * 本地测试登录接口
- */
-export const testLogin = ($api: ApiClient) => {
-  return $api('/wechat/test-login')
-}
+export const testLogin = (_$api: ApiClient) =>
+  Promise.reject(new Error('当前后端未提供测试登录接口，请先注册账号'))

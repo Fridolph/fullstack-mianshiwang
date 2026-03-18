@@ -1,11 +1,43 @@
 <script setup lang="ts">
+const toast = useToast()
 const config = useRuntimeConfig()
+const router = useRouter()
+const $api = useApiClient()
+const userStore = useUserStore()
 
 const navItems = [
   { label: '迁移记录', to: '/' },
-  { label: '登录', to: '/login' },
-  { label: '面试入口', to: '/interview' }
+  { label: '面试入口', to: '/interview' },
+  { label: '历史记录', to: '/history' },
+  { label: '个人中心', to: '/profile' }
 ]
+
+const userDisplayName = computed(
+  () => userStore.userInfo?.nickname || userStore.userInfo?.username || '学习中用户'
+)
+
+onMounted(async () => {
+  if (!userStore.token) return
+
+  try {
+    await userStore.ensureUserProfile($api)
+  } catch (error) {
+    toast.add({
+      title: '登录态已失效',
+      description: error instanceof Error ? error.message : '请重新登录',
+      color: 'warning'
+    })
+  }
+})
+
+async function handleLogout() {
+  userStore.logout()
+  toast.add({
+    title: '已退出登录',
+    color: 'success'
+  })
+  await router.push('/login')
+}
 </script>
 
 <template>
@@ -28,6 +60,28 @@ const navItems = [
           >
             <UButton color="neutral" variant="ghost">
               {{ item.label }}
+            </UButton>
+          </NuxtLink>
+
+          <template v-if="userStore.isLogin">
+            <NuxtLink to="/profile">
+              <UButton color="primary" variant="soft" icon="i-lucide-user-round">
+                {{ userDisplayName }}
+              </UButton>
+            </NuxtLink>
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-log-out"
+              @click="handleLogout"
+            >
+              退出
+            </UButton>
+          </template>
+
+          <NuxtLink v-else to="/login">
+            <UButton color="primary" icon="i-lucide-log-in">
+              登录 / 注册
             </UButton>
           </NuxtLink>
         </nav>

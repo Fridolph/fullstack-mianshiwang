@@ -3,12 +3,12 @@ import type { ApiClient } from '~/types/api'
 /**
  * 更新用户信息
  */
-export const updateUserInfoAPI = (
+export const updateUserProfileAPI = (
   $api: ApiClient,
   body: Record<string, unknown>
 ) => {
-  return $api('/user/update', {
-    method: 'POST',
+  return $api('/user/profile', {
+    method: 'PUT',
     body
   })
 }
@@ -23,23 +23,17 @@ export const getUserInfoAPI = ($api: ApiClient) => {
 }
 
 /**
- * 获取支付记录
- */
-export const getPaymentRecordsAPI = (
-  $api: ApiClient,
-  query?: Record<string, string | number>
-) => {
-  return $api('/user/transactions', {
-    method: 'GET',
-    query
-  })
-}
-
-/**
  * 获取消费记录
  */
-export const getConsumptionRecordsAPI = ($api: ApiClient) => {
+export const getConsumptionRecordsAPI = (
+  $api: ApiClient,
+  query?: {
+    skip?: number
+    limit?: number
+  }
+) => {
   return $api('/user/consumption-records', {
-    method: 'GET'
+    method: 'GET',
+    query
   })
 }
