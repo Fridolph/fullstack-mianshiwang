@@ -8,6 +8,7 @@ import ResumeAnalysisCard from '~/components/interview/ResumeAnalysisCard.vue'
 import ResumeQuizFormCard from '~/components/interview/ResumeQuizFormCard.vue'
 import ResumeQuizProgressCard from '~/components/interview/ResumeQuizProgressCard.vue'
 import type { ResumeQuizProgressEvent, SseConnection } from '~/types/api'
+import { resolvePublicApiBase } from '~/utils/api-base'
 
 definePageMeta({
   layout: 'default',
@@ -18,6 +19,7 @@ definePageMeta({
 const router = useRouter()
 const toast = useToast()
 const runtimeConfig = useRuntimeConfig()
+const publicApiBase = resolvePublicApiBase(runtimeConfig.public.apiBase)
 const $api = useApiClient()
 const userStore = useUserStore()
 const interviewStore = useInterviewStore()
@@ -186,7 +188,7 @@ async function handleGenerateQuiz() {
     },
     {
       token: userStore.token,
-      baseURL: runtimeConfig.public.apiBase,
+      baseURL: publicApiBase,
       callbacks: {
         onMessage(event) {
           interviewStore.pushProgressLog(event)

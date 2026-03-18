@@ -1,5 +1,6 @@
 import type { ApiClient, ApiEnvelope } from '~/types/api'
 import { useUserStore } from '~/stores/user'
+import { resolvePublicApiBase } from '~/utils/api-base'
 
 // 用运行时判断把后端通用响应结构缩窄成 ApiEnvelope，避免业务层自己到处写类型断言。
 function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
@@ -14,6 +15,7 @@ function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
 
 export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig()
+  const baseURL = resolvePublicApiBase(config.public.apiBase)
 
   /**
    * 统一请求客户端。
@@ -24,7 +26,7 @@ export default defineNuxtPlugin(() => {
    * 3. 自动把 { code, message, data } 拆成业务真正关心的 data
    */
   const api = $fetch.create({
-    baseURL: config.public.apiBase,
+    baseURL,
     credentials: 'include',
     timeout: 15000,
     onRequest({ options }) {
