@@ -1,5 +1,5 @@
 import { AIModelFactory } from 'src/ai/services/ai-model.factory'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { PromptTemplate } from '@langchain/core/prompts'
 import { RESUME_ANALYSIS_PROMPT } from '../prompts/resume-analysis.prompts'
 import { JsonOutputParser } from '@langchain/core/output_parsers'
@@ -43,7 +43,33 @@ export class ResumeAnalysisService {
       return result
     } catch (error) {
       this.logger.error('简历分析失败', error)
+
+      if (this.isModelAuthenticationError(error)) {
+        throw new ServiceUnavailableException(
+          'AI 服务鉴权失败，请检查当前开发环境中的 DEEPSEEK_API_KEY 或 QINIU_AI_API_KEY 配置',
+        )
+      }
+
       throw error
     }
+  }
+
+  private isModelAuthenticationError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+      return false
+    }
+
+    const authError = error as {
+      status?: number
+      type?: string
+      code?: string
+      lc_error_code?: string
+    }
+
+    return (
+      authError.status === 401 ||
+      authError.type === 'authentication_error' ||
+      authError.lc_error_code === 'MODEL_AUTHENTICATION'
+    )
   }
 }

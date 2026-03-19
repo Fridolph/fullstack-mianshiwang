@@ -122,6 +122,7 @@ async function handleAskFollowUp(question: string) {
 // 重新发起流式请求前，先关闭旧连接并清空上一次的进度痕迹。
 function resetStreamState() {
   activeConnection.value?.close()
+  activeConnection.value = null
   interviewStore.resetProgress()
   interviewStore.setLastError('')
 }
@@ -193,18 +194,21 @@ async function handleGenerateQuiz() {
         onMessage(event) {
           interviewStore.pushProgressLog(event)
           if (event.type === 'complete') {
+            activeConnection.value = null
             interviewStore.setInterviewStatus('ended')
             interviewStore.setReport(normalizeCompletePayload(event))
             loading.value = false
             void router.push('/interview/report')
           }
           if (event.type === 'error') {
+            activeConnection.value = null
             interviewStore.setInterviewStatus('idle')
             interviewStore.setLastError(event.error || '生成失败')
             loading.value = false
           }
         },
         onError(error) {
+          activeConnection.value = null
           interviewStore.setInterviewStatus('idle')
           interviewStore.setLastError(error.message)
           loading.value = false
@@ -215,6 +219,7 @@ async function handleGenerateQuiz() {
           })
         },
         onComplete() {
+          activeConnection.value = null
           loading.value = false
         }
       }

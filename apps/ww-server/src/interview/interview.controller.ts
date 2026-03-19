@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import type { Response } from 'express'
 import { ResumeQuizDto } from './dto/resume-quiz.dto'
 import { Logger } from '@nestjs/common'
+import { ResponseUtil } from '../common/utils/response.util'
 
 @Controller('interview')
 export class InterviewController {
@@ -28,10 +29,7 @@ export class InterviewController {
       body.resume,
       body.jobDescription,
     )
-    return {
-      code: 200,
-      data: result,
-    }
+    return ResponseUtil.success(result, '简历分析成功')
   }
 
   /**
@@ -46,12 +44,12 @@ export class InterviewController {
       body.question,
     )
 
-    return {
-      code: 200,
-      data: {
+    return ResponseUtil.success(
+      {
         response: result,
       },
-    }
+      '继续追问成功',
+    )
   }
 
   /**

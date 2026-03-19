@@ -9,6 +9,9 @@ import { RESUME_ANALYSIS_SYSTEM_MESSAGE } from '../prompts/resume-analysis.promp
 import { Subject } from 'rxjs'
 import { ResumeQuizDto } from '../dto/resume-quiz.dto'
 import { Model, Types } from 'mongoose'
+import { PromptTemplate } from '@langchain/core/prompts'
+import { StructuredOutputParser } from '@langchain/core/output_parsers'
+import { z } from 'zod'
 import {
   ConsumptionRecord,
   ConsumptionRecordDocument,
@@ -16,11 +19,18 @@ import {
   ConsumptionType,
 } from '../schemas/consumption-record.schema'
 import { InjectModel } from '@nestjs/mongoose'
+import { AIModelFactory } from '../../ai/services/ai-model.factory'
 import {
+  QuestionCategory,
+  QuestionDifficulty,
   ResumeQuizResult,
   ResumeQuizResultDocument,
 } from '../schemas/interview-quiz-result.schema'
 import { User, UserDocument } from '../../user/schemas/user.schema'
+import {
+  RESUME_QUIZ_PROMPT_ANALYSIS_ONLY,
+  RESUME_QUIZ_PROMPT_QUESTIONS_ONLY,
+} from '../prompts/resume-quiz.propmts'
 
 // 进度事件
 export interface ProgressEvent {
@@ -54,12 +64,69 @@ export class InterviewService {
     private resumeAnalysisService: ResumeAnalysisService,
     private conversationContinuationService: ConversationContinuationService,
     private documentParserService: DocumentParserService,
+    private aiModelFactory: AIModelFactory,
     @InjectModel(ConsumptionRecord.name)
     private consumptionRecordModel: Model<ConsumptionRecordDocument>,
     @InjectModel(ResumeQuizResult.name)
     private resumeQuizResultModel: Model<ResumeQuizResultDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
+
+  private readonly resumeQuizQuestionSchema = z.object({
+    question: z.string(),
+    answer: z.string(),
+    category: z.string(),
+    difficulty: z.string(),
+    tips: z.string().optional().nullable(),
+    keywords: z.array(z.string()).optional().default([]),
+    reasoning: z.string().optional().nullable(),
+  })
+
+  private readonly resumeQuizQuestionsParser = StructuredOutputParser.fromZodSchema(
+    z.object({
+      questions: z.array(this.resumeQuizQuestionSchema).min(1).max(12),
+      summary: z.string(),
+    }),
+  )
+
+  private readonly resumeQuizAnalysisParser = StructuredOutputParser.fromZodSchema(
+    z.object({
+      matchScore: z.number().min(0).max(100),
+      matchLevel: z.string(),
+      matchedSkills: z
+        .array(
+          z.object({
+            skill: z.string(),
+            matched: z.boolean(),
+            proficiency: z.string().optional().nullable(),
+          }),
+        )
+        .default([]),
+      missingSkills: z.array(z.string()).default([]),
+      knowledgeGaps: z.array(z.string()).default([]),
+      learningPriorities: z
+        .array(
+          z.object({
+            topic: z.string(),
+            priority: z.enum(['high', 'medium', 'low']),
+            reason: z.string(),
+          }),
+        )
+        .default([]),
+      radarData: z
+        .array(
+          z.object({
+            dimension: z.string(),
+            score: z.number().min(0).max(100),
+            description: z.string().optional().nullable(),
+          }),
+        )
+        .default([]),
+      strengths: z.array(z.string()).default([]),
+      weaknesses: z.array(z.string()).default([]),
+      interviewTips: z.array(z.string()).default([]),
+    }),
+  )
 
   /**
    * 分析简历（首轮，创建会话）
@@ -151,6 +218,16 @@ export class InterviewService {
     }
   }
 
+  getHistoryMessages(sessionId: string) {
+    try {
+      const history = this.sessionManager.getRecentMessages(sessionId, 10)
+      return history
+    } catch (err) {
+      this.logger.error(`获取当前会话历史消息失败: ${err}`)
+      throw err
+    }
+  }
+
   /**
    * 生成简历押题（带流式进度）
    * @param userId
@@ -169,6 +246,25 @@ export class InterviewService {
     return subject
   }
 
+  private emitComplete(
+    progressSubject: Subject<ProgressEvent> | undefined,
+    data: Record<string, unknown>,
+  ) {
+    if (!progressSubject || progressSubject.closed) {
+      return
+    }
+
+    progressSubject.next({
+      type: 'complete',
+      progress: 100,
+      label: 'AI 已完成问题生成',
+      message: 'AI 已完成问题生成',
+      stage: 'done',
+      data,
+    })
+    progressSubject.complete()
+  }
+
   /**
    * 执行简历押题（核心业务逻辑）
    */
@@ -178,6 +274,7 @@ export class InterviewService {
     progressSubject?: Subject<ProgressEvent>,
   ) {
     let consumptionRecord: any = null
+    let didConsumeCount = false
     const recordId = uuidv4()
     const resultId = uuidv4()
 
@@ -213,17 +310,33 @@ export class InterviewService {
 
           if (!existingResult) throw new BadRequestException('结果不存在')
 
-          // 直接返回，不再执行后续步骤，不再扣费
-          return {
+          const cachedPayload = {
             resultId: existingResult.resultId,
             questions: existingResult.questions,
             summary: existingResult.summary,
+            matchScore: existingResult.matchScore,
+            matchLevel: existingResult.matchLevel,
+            matchedSkills: existingResult.matchedSkills,
+            missingSkills: existingResult.missingSkills,
+            knowledgeGaps: existingResult.knowledgeGaps,
+            learningPriorities: existingResult.learningPriorities,
+            radarData: existingResult.radarData,
+            strengths: existingResult.strengths,
+            weaknesses: existingResult.weaknesses,
+            interviewTips: existingResult.interviewTips,
             remainingCount: await this.getRemainingCount(userId, 'resume'),
             consmptionRecordId: existingRecord.recordId,
-            isFromCache: true, // 标记这是从缓存返回的结果
+            isFromCache: true,
           }
+
+          this.emitComplete(progressSubject, cachedPayload)
+
+          // 直接返回，不再执行后续步骤，不再扣费
+          return cachedPayload
         }
       }
+
+      this.emitProgress(progressSubject, 5, '正在校验请求参数...', 'prepare')
 
       // 步骤1 检查并扣除次数（原子操作）
       // 注意：扣费后如果后续步骤失败，会在catch块中自动退款
@@ -241,10 +354,12 @@ export class InterviewService {
       if (!user) {
         throw new BadRequestException('简历押题次数不足, 请前往充值页面购买')
       }
+      didConsumeCount = true
 
       this.logger.log(
         `用户扣费成功: userId=${userId}, 扣费前=${user.resumeRemainingCount}, 扣费后=${user.resumeRemainingCount - 1}`,
       )
+      this.emitProgress(progressSubject, 20, '已校验剩余次数，开始生成押题...', 'prepare')
 
       // 步骤2 创建消费记录 pending
       consumptionRecord = await this.consumptionRecordModel.create({
@@ -272,14 +387,19 @@ export class InterviewService {
         startedAt: new Date(),
       })
       this.logger.log(`消费记录创建成功: recordId=${recordId}`)
+      this.emitProgress(progressSubject, 40, '已创建消费记录，正在生成结果...', 'generating')
 
       // 如果没有 requestId 或 requestId 不存在，则继续执行正常的生成流程逻辑
       this.logger.log(
         `开始生成简历押题 userId=${userId}, positionName=${dto.positionName}`,
       )
-
-      // 模拟一个假的AI响应数据，后面会用到
-      const aiResult: any = {}
+      const resumeContent = await this.extractResumeContent(userId, dto)
+      const salaryRange = this.formatSalaryRange(dto.minSalary, dto.maxSalary)
+      const aiResult = await this.generateResumeQuizResult(
+        dto,
+        resumeContent,
+        salaryRange,
+      )
       // 阶段3 保存结果阶段
       // const quizResult =
       await this.resumeQuizResultModel.create({
@@ -289,6 +409,7 @@ export class InterviewService {
         resumeId: dto.resumeId,
         company: dto.company || '',
         position: dto.positionName,
+        salaryRange,
         jobDescription: dto.jd,
         questions: aiResult?.questions || [],
         totalQuestions: aiResult?.questions?.length || 0,
@@ -297,6 +418,7 @@ export class InterviewService {
         matchScore: aiResult?.matchScore,
         matchLevel: aiResult?.matchLevel,
         matchedSkills: aiResult?.matchedSkills || [],
+        missingSkills: aiResult?.missingSkills || [],
         knowledgeGaps: aiResult?.knowledgeGaps || [],
         learningPriorities: aiResult?.learningPriorities || [],
         radarData: aiResult?.radarData || [],
@@ -305,10 +427,11 @@ export class InterviewService {
         interviewTips: aiResult?.interviewTips || [],
         // 元数据
         consumptionRecordId: recordId,
-        aiModel: 'deepseek-chat',
+        aiModel: this.getCurrentAiModelName(),
         promptVersion: dto.promptVersion || 'v2',
       })
       this.logger.log(`结果保存成功: resultId=${resultId}`)
+      this.emitProgress(progressSubject, 80, '结果已保存，正在整理返回数据...', 'saving')
 
       // 更新消费记录为成功
       await this.consumptionRecordModel.findByIdAndUpdate(
@@ -320,9 +443,7 @@ export class InterviewService {
               resultId,
               questionCount: aiResult?.questions?.length || 0,
             },
-            aiModel: 'deepseek-chat',
-            promptTokens: aiResult.usage?.promptTokens,
-            totalTokens: aiResult.usage?.totalTokens,
+            aiModel: this.getCurrentAiModelName(),
             completedAt: new Date(),
           },
         },
@@ -330,17 +451,44 @@ export class InterviewService {
       this.logger.log(
         `消费记录已更新为成功状态: recordId=${consumptionRecord.recordId}`,
       )
+
+      const completedPayload = {
+        resultId,
+        questions: aiResult?.questions || [],
+        summary: aiResult?.summary,
+        matchScore: aiResult?.matchScore,
+        matchLevel: aiResult?.matchLevel,
+        matchedSkills: aiResult?.matchedSkills || [],
+        missingSkills: aiResult?.missingSkills || [],
+        knowledgeGaps: aiResult?.knowledgeGaps || [],
+        learningPriorities: aiResult?.learningPriorities || [],
+        radarData: aiResult?.radarData || [],
+        strengths: aiResult?.strengths || [],
+        weaknesses: aiResult?.weaknesses || [],
+        interviewTips: aiResult?.interviewTips || [],
+        salaryRange,
+        remainingCount: await this.getRemainingCount(userId, 'resume'),
+        consmptionRecordId: recordId,
+      }
+
+      this.emitComplete(progressSubject, completedPayload)
+      return completedPayload
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      const stack = error instanceof Error ? error.stack : undefined
+
       this.logger.error(
-        `简历押题生成失败: userId=${userId}, error=${error.message}`,
-        error.stack,
+        `简历押题生成失败: userId=${userId}, error=${message}`,
+        stack,
       )
       // 失败回滚流程
       try {
         // 1. 返还次数（最重要）
-        this.logger.log(`开始退还次数: userId=${userId}`)
-        await this.refundCount(userId, 'resume')
-        this.logger.log(`次数退还成功: userId=${userId}`)
+        if (didConsumeCount) {
+          this.logger.log(`开始退还次数: userId=${userId}`)
+          await this.refundCount(userId, 'resume')
+          this.logger.log(`次数退还成功: userId=${userId}`)
+        }
 
         // 2. 更新消费记录为失败
         if (consumptionRecord) {
@@ -349,14 +497,14 @@ export class InterviewService {
             {
               $set: {
                 status: ConsumptionStatus.FAILED, // 标记为失败
-                errorMessage: error.message,
+                errorMessage: message,
                 errorStack:
                   process.env.NODE_ENV === 'development'
-                    ? error.stack // 开发环境记录堆栈
+                    ? stack // 开发环境记录堆栈
                     : undefined, // 生产环境 基于隐私考虑不记录
                 failedAt: new Date(),
-                isRefunded: true, // 标记为退款
-                refundedAt: new Date(),
+                isRefunded: didConsumeCount, // 标记为退款
+                refundedAt: didConsumeCount ? new Date() : undefined,
               },
             },
           )
@@ -369,9 +517,9 @@ export class InterviewService {
         this.logger.error(
           `退款流程失败，严重问题 P0！ 需要人工介入!
 userId=${userId},
-originalError=${error.message},
-refundError=${refundError.message},
-${refundError.stack}
+originalError=${message},
+refundError=${refundError instanceof Error ? refundError.message : String(refundError)},
+${refundError instanceof Error ? refundError.stack : ''}
 `,
         )
         // TODO 后续可以添加 邮件告警等逻辑
@@ -383,10 +531,13 @@ ${refundError.stack}
           type: 'error',
           progress: 0,
           label: '生成失败',
-          error,
+          message,
+          error: message,
         })
         progressSubject.complete()
+        return
       }
+
       throw error
     }
   }
@@ -538,6 +689,162 @@ ${refundError.stack}
     }
   }
 
+  private async generateResumeQuizResult(
+    dto: ResumeQuizDto,
+    resumeContent: string,
+    salaryRange: string,
+  ) {
+    const questionPrompt = PromptTemplate.fromTemplate(
+      RESUME_QUIZ_PROMPT_QUESTIONS_ONLY,
+    )
+    const analysisPrompt = PromptTemplate.fromTemplate(
+      RESUME_QUIZ_PROMPT_ANALYSIS_ONLY,
+    )
+
+    const [questionResult, analysisResult] = await Promise.all([
+      questionPrompt
+        .pipe(this.aiModelFactory.createCreativeModel())
+        .pipe(this.resumeQuizQuestionsParser)
+        .invoke({
+          company: dto.company || '未提供',
+          positionName: dto.positionName,
+          salaryRange,
+          jd: dto.jd,
+          resumeContent,
+          format_instructions:
+            this.resumeQuizQuestionsParser.getFormatInstructions(),
+        }),
+      analysisPrompt
+        .pipe(this.aiModelFactory.createStableModel())
+        .pipe(this.resumeQuizAnalysisParser)
+        .invoke({
+          company: dto.company || '未提供',
+          positionName: dto.positionName,
+          salaryRange,
+          jd: dto.jd,
+          resumeContent,
+          format_instructions:
+            this.resumeQuizAnalysisParser.getFormatInstructions(),
+        }),
+    ])
+
+    return {
+      ...questionResult,
+      ...analysisResult,
+      questions: questionResult.questions.map((item) => ({
+        question: item.question,
+        answer: item.answer,
+        category: this.normalizeQuestionCategory(item.category),
+        difficulty: this.normalizeQuestionDifficulty(item.difficulty),
+        tips: item.tips || '',
+        keywords: item.keywords || [],
+        reasoning: item.reasoning || '',
+      })),
+      matchedSkills: analysisResult.matchedSkills.map((item) => ({
+        skill: item.skill,
+        matched: item.matched,
+        proficiency: item.proficiency || undefined,
+      })),
+      radarData: analysisResult.radarData.map((item) => ({
+        dimension: item.dimension,
+        score: item.score,
+        description: item.description || undefined,
+      })),
+    }
+  }
+
+  private formatSalaryRange(minSalary?: number, maxSalary?: number): string {
+    if (minSalary && maxSalary) {
+      return `${minSalary}-${maxSalary}K`
+    }
+
+    if (minSalary) {
+      return `${minSalary}K+`
+    }
+
+    if (maxSalary) {
+      return `<=${maxSalary}K`
+    }
+
+    return '面议'
+  }
+
+  private normalizeQuestionCategory(category?: string): QuestionCategory {
+    const normalized = this.normalizeAiLabel(category)
+
+    if (
+      normalized.includes('project') ||
+      normalized.includes('项目')
+    ) {
+      return QuestionCategory.PROJECT
+    }
+
+    if (
+      normalized.includes('problem-solving') ||
+      normalized.includes('problem solving') ||
+      normalized.includes('scenario') ||
+      normalized.includes('case') ||
+      normalized.includes('问题解决') ||
+      normalized.includes('场景')
+    ) {
+      return QuestionCategory.PROBLEM_SOLVING
+    }
+
+    if (
+      normalized.includes('behavior') ||
+      normalized.includes('软技能') ||
+      normalized.includes('沟通') ||
+      normalized.includes('协作') ||
+      normalized.includes('行为')
+    ) {
+      return QuestionCategory.BEHAVIORAL
+    }
+
+    return QuestionCategory.TECHNICAL
+  }
+
+  private normalizeQuestionDifficulty(
+    difficulty?: string,
+  ): QuestionDifficulty {
+    const normalized = this.normalizeAiLabel(difficulty)
+
+    if (
+      normalized.includes('hard') ||
+      normalized.includes('困难') ||
+      normalized.includes('高难') ||
+      normalized.includes('压力')
+    ) {
+      return QuestionDifficulty.HARD
+    }
+
+    if (
+      normalized.includes('easy') ||
+      normalized.includes('简单') ||
+      normalized.includes('基础') ||
+      normalized.includes('暖场')
+    ) {
+      return QuestionDifficulty.EASY
+    }
+
+    return QuestionDifficulty.MEDIUM
+  }
+
+  private normalizeAiLabel(value?: string): string {
+    return (value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+      .replace(/\s+/g, ' ')
+  }
+
+  private getCurrentAiModelName(): string {
+    return (
+      this.configService.get<string>('QINIU_AI_MODEL') ||
+      this.configService.get<string>('DEEPSEEK_MODEL') ||
+      'deepseek-chat'
+    )
+  }
+
   /**
    * 提取简历内容：支持 text / 结构化简历 / 上传文件（pdf、word）
    */
@@ -583,7 +890,10 @@ ${refundError.stack}
           this.logger.log(
             `简历已截断，原长度 ${cleanedText.length} 字符, 截断后 ${truncatedText.length} 字符；Tokens 用量约 ${estimatedTokens}`,
           )
+          return truncatedText
         }
+
+        return cleanedText
       } catch (error) {
         // 文件解析失败，返回友好的错误信息
         if (error instanceof BadRequestException) throw error
@@ -593,11 +903,11 @@ ${refundError.stack}
         )
 
         throw new BadRequestException(
-          `简历文件解析失败，您可直接粘贴简历文本，或者上传 pdf 或 docx 文件，且未加密和损坏`,
+          '简历文件解析失败，您可直接粘贴简历文本，或者上传 pdf 或 docx 文件，且未加密和损坏',
         )
       }
     }
 
-    throw new BadRequestException('请提供简历ID或简历内容')
+    throw new BadRequestException('请提供简历内容或可访问的简历 URL')
   }
 }

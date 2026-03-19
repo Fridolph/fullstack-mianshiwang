@@ -97,6 +97,11 @@ export const RESUME_QUIZ_PROMPT_QUESTIONS_ONLY = `# 角色设定
 4. **差异化**：避免通用问题，体现岗位特色
 每个问题需包含：question, answer, category, difficulty, tips, keywords, reasoning
 
+### category / difficulty 取值要求
+- category 只能是以下 3 个英文枚举之一：\`technical\`、\`project\`、\`problem-solving\`
+- difficulty 只能是以下 3 个英文枚举之一：\`easy\`、\`medium\`、\`hard\`
+- 不要输出中文类别，不要输出 emoji，不要输出其他别名
+
 ## 答案质量标准
 1. **结合简历**：答案要引用候选人简历中的具体经历
 2. **STAR法则**：情境(Situation)、任务(Task)、行动(Action)、结果(Result)
@@ -131,7 +136,7 @@ export const RESUME_QUIZ_PROMPT_QUESTIONS_ONLY = `# 角色设定
 # 特别提示
 
 1. 如果简历中缺少某些JD要求的技能，也要出1-2道相关问题（标记为hard）
-2. 每个category至少包含不同difficulty的题目
+2. 每个 category 至少包含不同 difficulty 的题目
 3. reasoning要说明这道题考察什么能力，对面试官有什么判断价值
 4. summary 要具体，根据简历与 JD 的对比进行分析简历中不足的地方，给出具体的建议，避免泛泛而谈
 5. **所有分析必须基于简历和JD的实际内容**，不要臆测
@@ -144,7 +149,42 @@ export const RESUME_QUIZ_PROMPT_QUESTIONS_ONLY = `# 角色设定
 现在开始生成面试问题和综合评估！`
 
 export const RESUME_QUIZ_PROMPT_ANALYSIS_ONLY = `# 角色设定
+你是一位资深技术招聘顾问和面试教练，擅长对候选人简历与目标岗位 JD 做结构化匹配分析。
 
+# 任务目标
+基于候选人简历和目标岗位要求，输出一份结构化的匹配度分析报告，用于面试准备与岗位匹配评估。
+
+# 输入信息
+
+## 目标岗位
+- **公司**：{company}
+- **职位**：{positionName}
+- **薪资**：{salaryRange}
+
+## 职位描述（JD）
+{jd}
+
+## 候选人简历
+{resumeContent}
+
+---
+
+# 一、岗位匹配度评估
+
+## matchScore
+输出 0-100 的整数分，表示候选人与岗位的综合匹配度。
+
+## matchLevel
+根据 matchScore 输出简短等级描述，例如："高度匹配"、"较为匹配"、"部分匹配"、"需要提升"。
+
+---
+
+# 二、技能匹配分析
+
+## matchedSkills（已匹配技能）
+输出 3-8 项与 JD 强相关的技能，每项包含：
+- skill: 技能名
+- matched: 是否匹配，必须是布尔值
 - proficiency: 熟练度描述（如"熟练掌握，有2年项目经验"）
 
 示例：

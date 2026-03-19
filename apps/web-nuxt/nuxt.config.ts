@@ -1,5 +1,10 @@
 import { defineNuxtConfig } from 'nuxt/config'
 
+const devServerHost = process.env.NUXT_HOST || '0.0.0.0'
+const devServerPort = process.env.NUXT_PORT
+  ? Number(process.env.NUXT_PORT)
+  : undefined
+
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
@@ -52,8 +57,8 @@ export default defineNuxtConfig({
   srcDir: 'app',
 
   devServer: {
-    host: '0.0.0.0',
-    port: 5945,
+    host: devServerHost,
+    ...(devServerPort ? { port: devServerPort } : {}),
   },
   compatibilityDate: '2025-11-11',
 
