@@ -1,7 +1,12 @@
 import { DocumentParserService } from './document-parser.service'
 import { v4 as uuidv4 } from 'uuid'
 import { ConversationContinuationService } from './conversation-continuation.service'
-import { BadRequestException, Injectable, Logger } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { SessionManager } from './../../ai/services/session.manager'
 import { ResumeAnalysisService } from './resume-analysis.service'
@@ -228,6 +233,83 @@ export class InterviewService {
     }
   }
 
+  async getResumeQuizRequestStatus(userId: string, requestId: string) {
+    const record = await this.consumptionRecordModel
+      .findOne({
+        userId,
+        type: ConsumptionType.RESUME_QUIZ,
+        'metadata.requestId': requestId,
+      })
+      .lean()
+
+    if (!record) {
+      throw new NotFoundException('未找到对应的 requestId 记录')
+    }
+
+    const basePayload = {
+      requestId,
+      recordId: record.recordId,
+      status: record.status,
+      resultId: record.resultId,
+      startedAt: record.startedAt,
+      completedAt: record.completedAt,
+      failedAt: record.failedAt,
+      errorMessage: record.errorMessage,
+      isRefunded: record.isRefunded,
+      promptVersion: record.metadata?.promptVersion,
+    }
+
+    if (record.status === ConsumptionStatus.PENDING) {
+      return {
+        ...basePayload,
+        message: '请求仍在处理中，请继续等待或稍后重试',
+      }
+    }
+
+    if (record.status === ConsumptionStatus.FAILED) {
+      return {
+        ...basePayload,
+        message: '请求处理失败',
+      }
+    }
+
+    const result = record.resultId
+      ? await this.resumeQuizResultModel
+          .findOne({
+            resultId: record.resultId,
+            userId,
+          })
+          .lean()
+      : null
+
+    return {
+      ...basePayload,
+      message: result ? '已找到对应结果' : '消费记录已成功，但结果明细不存在',
+      result: result
+        ? {
+            resultId: result.resultId,
+            company: result.company,
+            position: result.position,
+            salaryRange: result.salaryRange,
+            summary: result.summary,
+            questions: result.questions,
+            matchScore: result.matchScore,
+            matchLevel: result.matchLevel,
+            matchedSkills: result.matchedSkills,
+            missingSkills: result.missingSkills,
+            knowledgeGaps: result.knowledgeGaps,
+            learningPriorities: this.normalizeLearningPriorities(
+              result.learningPriorities,
+            ),
+            radarData: result.radarData,
+            strengths: result.strengths,
+            weaknesses: result.weaknesses,
+            interviewTips: result.interviewTips,
+          }
+        : null,
+    }
+  }
+
   /**
    * 生成简历押题（带流式进度）
    * @param userId
@@ -319,7 +401,9 @@ export class InterviewService {
             matchedSkills: existingResult.matchedSkills,
             missingSkills: existingResult.missingSkills,
             knowledgeGaps: existingResult.knowledgeGaps,
-            learningPriorities: existingResult.learningPriorities,
+            learningPriorities: this.normalizeLearningPriorities(
+              existingResult.learningPriorities,
+            ),
             radarData: existingResult.radarData,
             strengths: existingResult.strengths,
             weaknesses: existingResult.weaknesses,
@@ -745,6 +829,9 @@ ${refundError instanceof Error ? refundError.stack : ''}
         matched: item.matched,
         proficiency: item.proficiency || undefined,
       })),
+      learningPriorities: this.normalizeLearningPriorities(
+        analysisResult.learningPriorities,
+      ),
       radarData: analysisResult.radarData.map((item) => ({
         dimension: item.dimension,
         score: item.score,
@@ -767,6 +854,27 @@ ${refundError instanceof Error ? refundError.stack : ''}
     }
 
     return '面议'
+  }
+
+  private normalizeLearningPriorities(
+    items?: Array<{
+      topic?: string
+      priority?: string
+      reason?: string
+    }> | null,
+  ) {
+    return (items || [])
+      .filter(
+        (item) =>
+          Boolean(item?.topic) &&
+          Boolean(item?.priority) &&
+          Boolean(item?.reason),
+      )
+      .map((item) => ({
+        topic: item.topic as string,
+        priority: item.priority as string,
+        reason: item.reason as string,
+      }))
   }
 
   private normalizeQuestionCategory(category?: string): QuestionCategory {

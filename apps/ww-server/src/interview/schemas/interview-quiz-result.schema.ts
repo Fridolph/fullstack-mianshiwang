@@ -81,6 +81,7 @@ export const SkillMatchSchema = SchemaFactory.createForClass(SkillMatch)
 /**
  * 学习优先级
  */
+@Schema({ _id: false })
 export class LearningPriority {
   @Prop({ required: true })
   topic: string // 主题

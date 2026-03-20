@@ -1,9 +1,19 @@
-import { Controller, Post, UseGuards, Body, Request, Res } from '@nestjs/common'
+import {
+  Controller,
+  Post,
+  UseGuards,
+  Body,
+  Request,
+  Res,
+  Get,
+  Query,
+} from '@nestjs/common'
 // import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import { InterviewService } from './services/interview.service'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import type { Response } from 'express'
 import { ResumeQuizDto } from './dto/resume-quiz.dto'
+import { ResumeQuizStatusDto } from './dto/resume-quiz-status.dto'
 import { Logger } from '@nestjs/common'
 import { ResponseUtil } from '../common/utils/response.util'
 
@@ -96,6 +106,23 @@ export class InterviewController {
       this.logger.log(`客户端断开简历押题流 userId=${userId}`)
       subscription.unsubscribe()
     })
+  }
+
+  /**
+   * 根据 requestId 查询简历押题处理状态
+   */
+  @Get('resume/quiz/status')
+  @UseGuards(JwtAuthGuard)
+  async getResumeQuizStatus(
+    @Query() query: ResumeQuizStatusDto,
+    @Request() req: any,
+  ) {
+    const result = await this.interviewService.getResumeQuizRequestStatus(
+      req.user.userId,
+      query.requestId,
+    )
+
+    return ResponseUtil.success(result, '查询简历押题状态成功')
   }
 
   // // 接口 2：开始模拟面试
