@@ -9,11 +9,11 @@ const navItems = [
   { label: '迁移记录', to: '/migration-notes' },
   { label: '面试入口', to: '/interview' },
   { label: '历史记录', to: '/history' },
-  { label: '个人中心', to: '/profile' }
+  { label: '个人中心', to: '/profile' },
 ]
 
 const userDisplayName = computed(
-  () => userStore.userInfo?.nickname || userStore.userInfo?.username || '学习中用户'
+  () => userStore.userInfo?.nickname || userStore.userInfo?.username || '学习中用户',
 )
 
 onMounted(async () => {
@@ -25,7 +25,7 @@ onMounted(async () => {
     toast.add({
       title: '登录态已失效',
       description: error instanceof Error ? error.message : '请重新登录',
-      color: 'warning'
+      color: 'warning',
     })
   }
 })
@@ -34,7 +34,7 @@ async function handleLogout() {
   userStore.logout()
   toast.add({
     title: '已退出登录',
-    color: 'success'
+    color: 'success',
   })
   await router.push('/login')
 }
@@ -58,8 +58,7 @@ async function handleLogout() {
             :key="item.to"
             color="neutral"
             variant="ghost"
-            :to="item.to"
-          >
+            :to="item.to">
             {{ item.label }}
           </UButton>
 
@@ -68,16 +67,14 @@ async function handleLogout() {
               color="primary"
               variant="soft"
               icon="i-lucide-user-round"
-              to="/profile"
-            >
+              to="/profile">
               {{ userDisplayName }}
             </UButton>
             <UButton
               color="neutral"
               variant="outline"
               icon="i-lucide-log-out"
-              @click="handleLogout"
-            >
+              @click="handleLogout">
               退出
             </UButton>
           </template>
@@ -86,8 +83,7 @@ async function handleLogout() {
             v-else
             color="primary"
             icon="i-lucide-log-in"
-            to="/login"
-          >
+            to="/login">
             登录 / 注册
           </UButton>
         </nav>

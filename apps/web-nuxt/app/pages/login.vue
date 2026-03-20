@@ -3,7 +3,7 @@ import AuthBenefitsPanel from '~/components/auth/AuthBenefitsPanel.vue'
 import AuthCredentialPanel from '~/components/auth/AuthCredentialPanel.vue'
 
 definePageMeta({
-  layout: 'default'
+  layout: 'default',
 })
 
 const route = useRoute()

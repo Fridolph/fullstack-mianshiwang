@@ -23,11 +23,11 @@ export const getResumeListAPI = ($api: ApiClient) => {
  */
 export const uploadResumeAPI = (
   $api: ApiClient,
-  body: UploadResumePayload
+  body: UploadResumePayload,
 ) => {
   return $api('/resume/uploadResume', {
     method: 'POST',
-    body
+    body,
   })
 }
 
@@ -38,8 +38,8 @@ export const deleteResumeAPI = ($api: ApiClient, resumeId: string) => {
   return $api('/resume/deleteResume', {
     method: 'POST',
     body: {
-      resumeId
-    }
+      resumeId,
+    },
   })
 }
 
@@ -48,10 +48,10 @@ export const deleteResumeAPI = ($api: ApiClient, resumeId: string) => {
  */
 export const updateResumeNameAPI = (
   $api: ApiClient,
-  body: UpdateResumeNamePayload
+  body: UpdateResumeNamePayload,
 ) => {
   return $api('/resume/updateResumeName', {
     method: 'POST',
-    body
+    body,
   })
 }

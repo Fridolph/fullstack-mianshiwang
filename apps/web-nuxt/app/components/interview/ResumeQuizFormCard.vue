@@ -16,13 +16,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: ResumeQuizFormState]
-  analyze: []
-  generate: []
+  'analyze': []
+  'generate': []
 }>()
 
 const model = computed({
   get: () => props.modelValue,
-  set: (value: ResumeQuizFormState) => emit('update:modelValue', value)
+  set: (value: ResumeQuizFormState) => emit('update:modelValue', value),
 })
 </script>
 
@@ -128,15 +128,13 @@ const model = computed({
         variant="soft"
         :loading="loading"
         icon="i-lucide-search-code"
-        @click="emit('analyze')"
-      >
+        @click="emit('analyze')">
         先分析简历
       </UButton>
       <UButton
         :loading="loading"
         icon="i-lucide-play"
-        @click="emit('generate')"
-      >
+        @click="emit('generate')">
         开始流式押题
       </UButton>
     </div>

@@ -8,7 +8,7 @@ interface UIState {
 export const useUIStore = defineStore('ui', {
   state: (): UIState => ({
     authPromptOpen: false,
-    authRedirectPath: '/'
+    authRedirectPath: '/',
   }),
   actions: {
     showAuthPrompt(path = '/') {
@@ -18,6 +18,6 @@ export const useUIStore = defineStore('ui', {
     hideAuthPrompt() {
       this.authPromptOpen = false
       this.authRedirectPath = '/'
-    }
-  }
+    },
+  },
 })

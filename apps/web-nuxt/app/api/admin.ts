@@ -5,6 +5,6 @@ import type { ApiClient } from '~/types/api'
  */
 export const getMockInterviewCountAPI = ($api: ApiClient) => {
   return $api('/admin/interview-count', {
-    method: 'GET'
+    method: 'GET',
   })
 }

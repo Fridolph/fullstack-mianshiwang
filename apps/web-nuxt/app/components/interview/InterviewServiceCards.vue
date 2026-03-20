@@ -3,18 +3,18 @@ const services = [
   {
     title: '简历分析',
     description: '先用当前 Nest 后端的 `analyze-resume` 能力快速看一眼岗位匹配和简历重点。',
-    icon: 'i-lucide-file-search-2'
+    icon: 'i-lucide-file-search-2',
   },
   {
     title: '简历押题',
     description: '通过 SSE 流式接口观察进度事件和最终结果，贴近你当前 AI 学习主线。',
-    icon: 'i-lucide-sparkles'
+    icon: 'i-lucide-sparkles',
   },
   {
     title: '历史复盘',
     description: '消费记录与用户资料已经接入，后续再继续补报告查询与结果详情。',
-    icon: 'i-lucide-history'
-  }
+    icon: 'i-lucide-history',
+  },
 ]
 </script>
 
@@ -24,8 +24,7 @@ const services = [
       v-for="item in services"
       :key="item.title"
       class="service-card"
-      :ui="{ body: 'p-7 sm:p-8' }"
-    >
+      :ui="{ body: 'p-7 sm:p-8' }">
       <div class="service-card__body">
         <div class="service-card__icon">
           <UIcon :name="item.icon" class="size-5" />

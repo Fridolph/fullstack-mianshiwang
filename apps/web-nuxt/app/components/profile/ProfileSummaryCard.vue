@@ -17,8 +17,12 @@ defineProps<{
         <UIcon name="i-lucide-user-round" class="size-8" />
       </div>
       <div>
-        <p class="profile-summary__name">{{ nickname || username || '未设置用户名' }}</p>
-        <p class="profile-summary__email">{{ email || '暂无邮箱信息' }}</p>
+        <p class="profile-summary__name">
+          {{ nickname || username || '未设置用户名' }}
+        </p>
+        <p class="profile-summary__email">
+          {{ email || '暂无邮箱信息' }}
+        </p>
       </div>
     </div>
 

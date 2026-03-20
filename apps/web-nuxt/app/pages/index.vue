@@ -6,20 +6,20 @@ const serviceCards = [
     title: '简历分析',
     description: '先根据目标岗位和简历内容拿到结构化分析结果，再决定后面的追问与押题方向。',
     icon: 'i-lucide-file-search-2',
-    to: '/interview/start'
+    to: '/interview/start',
   },
   {
     title: '简历押题',
     description: '通过流式进度观察 AI 工作过程，逐步理解前后端联调和 SSE 交互链路。',
     icon: 'i-lucide-sparkles',
-    to: '/interview/start'
+    to: '/interview/start',
   },
   {
     title: '历史复盘',
     description: '查看消费记录和服务轨迹，后续会继续补结果详情与完整报告回看。',
     icon: 'i-lucide-history',
-    to: '/history'
-  }
+    to: '/history',
+  },
 ]
 
 const learnCards = [
@@ -27,18 +27,18 @@ const learnCards = [
     title: '迁移记录',
     description: '查看 JS -> TS -> Monorepo 的阶段演进、踩坑和取舍。',
     icon: 'i-lucide-book-open-text',
-    to: '/migration-notes'
+    to: '/migration-notes',
   },
   {
     title: '个人中心',
     description: '查看当前用户资料、剩余次数和后续将继续补齐的个人能力面板。',
     icon: 'i-lucide-user-round',
-    to: '/profile'
-  }
+    to: '/profile',
+  },
 ]
 
 const startPath = computed(() =>
-  userStore.isLogin ? '/interview/start' : '/login?redirect=/interview/start'
+  userStore.isLogin ? '/interview/start' : '/login?redirect=/interview/start',
 )
 </script>
 
@@ -48,15 +48,16 @@ const startPath = computed(() =>
       class="home-hero"
       :ui="{
         body: 'p-0 sm:p-0'
-      }"
-    >
+      }">
       <div class="home-hero__body">
         <UBadge color="primary" variant="soft" size="lg">
           AI 面试练习平台
         </UBadge>
 
         <div class="home-hero__copy">
-          <h1 class="section-title">从简历分析开始，进入你的 AI 面试训练入口</h1>
+          <h1 class="section-title">
+            从简历分析开始，进入你的 AI 面试训练入口
+          </h1>
           <p class="section-description">
             现在首页先回归“用户真正要做什么”：登录、开始简历分析、发起简历押题、查看历史记录。
             原来的迁移说明仍然保留，但挪到独立入口，方便学习和复盘。
@@ -72,8 +73,7 @@ const startPath = computed(() =>
             color="neutral"
             variant="soft"
             icon="i-lucide-history"
-            to="/history"
-          >
+            to="/history">
             查看历史记录
           </UButton>
           <UButton
@@ -81,8 +81,7 @@ const startPath = computed(() =>
             color="neutral"
             variant="ghost"
             icon="i-lucide-book-open-text"
-            to="/migration-notes"
-          >
+            to="/migration-notes">
             查看迁移说明
           </UButton>
         </div>
@@ -96,10 +95,13 @@ const startPath = computed(() =>
             ]"
             :key="item.label"
             variant="subtle"
-            class="home-stat"
-          >
-            <p class="home-stat__label">{{ item.label }}</p>
-            <p class="home-stat__value">{{ item.value }}</p>
+            class="home-stat">
+            <p class="home-stat__label">
+              {{ item.label }}
+            </p>
+            <p class="home-stat__value">
+              {{ item.value }}
+            </p>
           </UCard>
         </div>
       </div>
@@ -108,8 +110,12 @@ const startPath = computed(() =>
     <section class="home-section">
       <div class="home-section__header">
         <div>
-          <UBadge color="neutral" variant="soft">业务入口</UBadge>
-          <h2 class="home-section__title">先做真正会用到的事情</h2>
+          <UBadge color="neutral" variant="soft">
+            业务入口
+          </UBadge>
+          <h2 class="home-section__title">
+            先做真正会用到的事情
+          </h2>
         </div>
       </div>
 
@@ -117,8 +123,7 @@ const startPath = computed(() =>
         <UCard
           v-for="card in serviceCards"
           :key="card.title"
-          class="home-card"
-        >
+          class="home-card">
           <template #header>
             <div class="home-card__header">
               <UIcon :name="card.icon" class="size-6 text-primary" />
@@ -126,7 +131,9 @@ const startPath = computed(() =>
             </div>
           </template>
 
-          <p class="home-card__description">{{ card.description }}</p>
+          <p class="home-card__description">
+            {{ card.description }}
+          </p>
 
           <template #footer>
             <UButton
@@ -134,8 +141,7 @@ const startPath = computed(() =>
               variant="soft"
               block
               trailing-icon="i-lucide-arrow-right"
-              :to="card.to"
-            >
+              :to="card.to">
               进入
             </UButton>
           </template>
@@ -146,8 +152,12 @@ const startPath = computed(() =>
     <section class="home-section">
       <div class="home-section__header">
         <div>
-          <UBadge color="neutral" variant="soft">学习入口</UBadge>
-          <h2 class="home-section__title">保留迁移记录，但不再占据首页主入口</h2>
+          <UBadge color="neutral" variant="soft">
+            学习入口
+          </UBadge>
+          <h2 class="home-section__title">
+            保留迁移记录，但不再占据首页主入口
+          </h2>
         </div>
       </div>
 
@@ -155,8 +165,7 @@ const startPath = computed(() =>
         <UCard
           v-for="card in learnCards"
           :key="card.title"
-          class="home-card"
-        >
+          class="home-card">
           <template #header>
             <div class="home-card__header">
               <UIcon :name="card.icon" class="size-6 text-primary" />
@@ -164,7 +173,9 @@ const startPath = computed(() =>
             </div>
           </template>
 
-          <p class="home-card__description">{{ card.description }}</p>
+          <p class="home-card__description">
+            {{ card.description }}
+          </p>
 
           <template #footer>
             <UButton
@@ -172,8 +183,7 @@ const startPath = computed(() =>
               variant="soft"
               block
               trailing-icon="i-lucide-arrow-right"
-              :to="card.to"
-            >
+              :to="card.to">
               打开
             </UButton>
           </template>

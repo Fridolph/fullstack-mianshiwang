@@ -4,7 +4,7 @@ import type {
   InterviewMessage,
   InterviewReport,
   InterviewServiceType,
-  PositionSelection
+  PositionSelection,
 } from '~/types/domain'
 
 /**
@@ -72,8 +72,8 @@ export const useInterviewStore = defineStore(
         maxSalary: null,
         jd: '',
         resumeContent: '',
-        resumeURL: ''
-      }
+        resumeURL: '',
+      },
     }),
     getters: {
       resumeType: (state) => {
@@ -81,9 +81,9 @@ export const useInterviewStore = defineStore(
         if (state.resumeText.trim()) return 'text'
         return ''
       },
-      isInterviewing: (state) =>
-        state.interviewStatus === 'starting' ||
-        state.interviewStatus === 'in_progress'
+      isInterviewing: state =>
+        state.interviewStatus === 'starting'
+        || state.interviewStatus === 'in_progress',
     },
     actions: {
       setSelectedService(service: InterviewServiceType) {
@@ -92,7 +92,7 @@ export const useInterviewStore = defineStore(
       setSelectedPosition(position: PositionSelection | null) {
         this.selectedPosition = position
       },
-      setResumeSelection(payload: { resumeId?: string | null; resumeText?: string }) {
+      setResumeSelection(payload: { resumeId?: string | null, resumeText?: string }) {
         this.resumeId = payload.resumeId ?? null
         this.resumeText = payload.resumeText ?? ''
       },
@@ -120,7 +120,7 @@ export const useInterviewStore = defineStore(
       setQuizDraft(payload: Partial<ResumeQuizDraft>) {
         this.quizDraft = {
           ...this.quizDraft,
-          ...payload
+          ...payload,
         }
         this.resumeText = this.quizDraft.resumeContent
       },
@@ -161,10 +161,10 @@ export const useInterviewStore = defineStore(
           maxSalary: null,
           jd: '',
           resumeContent: '',
-          resumeURL: ''
+          resumeURL: '',
         }
         this.resetInterview()
-      }
+      },
     },
     persist: {
       pick: [
@@ -176,8 +176,8 @@ export const useInterviewStore = defineStore(
         'sessionId',
         'report',
         'analysis',
-        'quizDraft'
-      ]
-    }
-  }
+        'quizDraft',
+      ],
+    },
+  },
 )

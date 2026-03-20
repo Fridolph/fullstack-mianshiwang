@@ -5,11 +5,11 @@ import { resolvePublicApiBase } from '~/utils/api-base'
 // 用运行时判断把后端通用响应结构缩窄成 ApiEnvelope，避免业务层自己到处写类型断言。
 function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    'code' in value &&
-    'message' in value &&
-    'data' in value
+    typeof value === 'object'
+    && value !== null
+    && 'code' in value
+    && 'message' in value
+    && 'data' in value
   )
 }
 
@@ -56,8 +56,8 @@ export default defineNuxtPlugin(() => {
       throw new Error(response._data.message || '请求失败')
     },
     onResponseError({ response }) {
-      const message =
-        typeof response?._data?.message === 'string'
+      const message
+        = typeof response?._data?.message === 'string'
           ? response._data.message
           : response?.statusText || '网络请求失败'
 
@@ -68,12 +68,12 @@ export default defineNuxtPlugin(() => {
 
       // 统一把 HTTP 层错误转成 Error，保证页面侧只处理一种错误形态。
       throw new Error(message)
-    }
+    },
   })
 
   return {
     provide: {
-      api: api as ApiClient
-    }
+      api: api as ApiClient,
+    },
   }
 })

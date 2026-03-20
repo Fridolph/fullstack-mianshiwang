@@ -1,5 +1,4 @@
 // packages/playground/types/shims-auto-imports.d.ts
-import type { Ref } from 'vue'
 
 declare const ref: typeof import('vue')['ref']
 declare const reactive: typeof import('vue')['reactive']

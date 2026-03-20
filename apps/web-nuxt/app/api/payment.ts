@@ -12,7 +12,7 @@ import type { ApiClient } from '~/types/api'
 export const createOrderAPI = ($api: ApiClient, body: Record<string, unknown>) => {
   return $api(`/payment/order`, {
     method: 'POST',
-    body
+    body,
   })
 }
 
@@ -23,10 +23,10 @@ export const createOrderAPI = ($api: ApiClient, body: Record<string, unknown>) =
  */
 export const queryOrderStatusAPI = (
   $api: ApiClient,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
 ) => {
   return $api(`/payment/order/status`, {
     method: 'POST',
-    body
+    body,
   })
 }

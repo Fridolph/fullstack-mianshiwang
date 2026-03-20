@@ -19,15 +19,15 @@ export default defineNuxtRouteMiddleware((to) => {
     return navigateTo({
       path: '/login',
       query: {
-        redirect: to.fullPath
-      }
+        redirect: to.fullPath,
+      },
     })
   }
 
   return navigateTo({
     path: '/login',
     query: {
-      redirect: to.fullPath
-    }
+      redirect: to.fullPath,
+    },
   })
 })

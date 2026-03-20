@@ -10,13 +10,13 @@ const typeLabelMap: Record<string, string> = {
   resume_quiz: '简历押题',
   special_interview: '专项面试',
   behavior_interview: 'HR / 行测',
-  ai_interview: 'AI 模拟面试'
+  ai_interview: 'AI 模拟面试',
 }
 
 const statusLabelMap: Record<string, string> = {
   pending: '处理中',
   success: '已完成',
-  failed: '已失败'
+  failed: '已失败',
 }
 
 function formatDate(value?: string) {
@@ -24,7 +24,7 @@ function formatDate(value?: string) {
 
   return new Intl.DateTimeFormat('zh-CN', {
     dateStyle: 'medium',
-    timeStyle: 'short'
+    timeStyle: 'short',
   }).format(new Date(value))
 }
 
@@ -67,15 +67,13 @@ function resolveStatusColor(status?: string) {
       <article
         v-for="record in records"
         :key="record.recordId || record._id"
-        class="history-item"
-      >
+        class="history-item">
         <div class="history-item__main">
           <div class="history-item__title-row">
             <h3>{{ record.inputData?.company || '未填写公司' }}</h3>
             <UBadge
               :color="resolveStatusColor(record.status)"
-              variant="soft"
-            >
+              variant="soft">
               {{ statusLabelMap[record.status || 'pending'] || '处理中' }}
             </UBadge>
           </div>

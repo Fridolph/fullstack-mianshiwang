@@ -6,17 +6,21 @@ export default withNuxt({
   rules: {
     // 允许 any
     '@typescript-eslint/no-explicit-any': 'off',
+    '@stylistic/comma-dangle': ['error', 'always-multiline'],
     // 组件必须为多字 （没必要）
     'vue/multi-word-component-names': 'off',
     // 强制每行的最大属性数 为 3个
-    'vue/max-attributes-per-line': ['error', {
-      singleline: {
-        max: 3
+    'vue/max-attributes-per-line': [
+      'error',
+      {
+        singleline: {
+          max: 3,
+        },
+        multiline: {
+          max: 3,
+        },
       },
-      multiline: {
-        max: 3
-      }
-    }],
+    ],
     // 需要或不允许在标签的右括号之前换行
     'vue/html-closing-bracket-newline': [
       'error',
@@ -25,14 +29,17 @@ export default withNuxt({
         multiline: 'never',
         selfClosingTag: {
           singleline: 'never',
-          multiline: 'always'
-        }
-      }
+          multiline: 'always',
+        },
+      },
     ],
     // 不允许向模板中添加多个根节点（Vue3 不用遵守）
-    'vue/no-multiple-template-root': ['off', {
-      disallowComments: false
-    }],
-    'vue/no-v-html': ['off']
-  }
+    'vue/no-multiple-template-root': [
+      'off',
+      {
+        disallowComments: false,
+      },
+    ],
+    'vue/no-v-html': ['off'],
+  },
 })

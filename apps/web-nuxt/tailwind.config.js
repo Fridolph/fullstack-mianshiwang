@@ -14,7 +14,7 @@ export default {
     // 补充：子项目的其他文件（如 layouts/pages/components）
     join(__dirname, './pages/**/*.{vue,js,ts}'),
     join(__dirname, './components/**/*.{vue,js,ts}'),
-    join(__dirname, './layouts/**/*.{vue,js,ts}')
+    join(__dirname, './layouts/**/*.{vue,js,ts}'),
   ],
   theme: {},
   plugins: [
@@ -25,9 +25,9 @@ export default {
           height: '1px',
           backgroundImage: 'linear-gradient(to right, #e5e7eb 0%, #e5e7eb 40%, transparent 40%, transparent 60%)',
           backgroundSize: '12px 1px',
-          backgroundRepeat: 'repeat-x'
-        }
+          backgroundRepeat: 'repeat-x',
+        },
       })
-    })
-  ]
+    }),
+  ],
 }

@@ -5,7 +5,7 @@ import ProfileSummaryCard from '~/components/profile/ProfileSummaryCard.vue'
 definePageMeta({
   layout: 'default',
   middleware: 'auth',
-  requiresAuth: true
+  requiresAuth: true,
 })
 
 const toast = useToast()
@@ -21,7 +21,7 @@ onMounted(async () => {
     toast.add({
       title: '加载用户资料失败',
       description: error instanceof Error ? error.message : '请重新登录',
-      color: 'error'
+      color: 'error',
     })
   } finally {
     loading.value = false

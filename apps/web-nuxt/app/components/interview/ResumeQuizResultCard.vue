@@ -42,11 +42,16 @@ defineProps<{
           <article
             v-for="(question, index) in report.questions"
             :key="`${question.question}-${index}`"
-            class="result-question"
-          >
-            <p class="result-question__title">Q{{ index + 1 }}. {{ question.question }}</p>
-            <p v-if="question.answer"><strong>参考答案：</strong>{{ question.answer }}</p>
-            <p v-if="question.tips"><strong>回答提示：</strong>{{ question.tips }}</p>
+            class="result-question">
+            <p class="result-question__title">
+              Q{{ index + 1 }}. {{ question.question }}
+            </p>
+            <p v-if="question.answer">
+              <strong>参考答案：</strong>{{ question.answer }}
+            </p>
+            <p v-if="question.tips">
+              <strong>回答提示：</strong>{{ question.tips }}
+            </p>
           </article>
         </div>
         <div v-else class="result-card__empty">

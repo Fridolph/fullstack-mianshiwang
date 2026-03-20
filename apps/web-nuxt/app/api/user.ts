@@ -5,11 +5,11 @@ import type { ApiClient } from '~/types/api'
  */
 export const updateUserProfileAPI = (
   $api: ApiClient,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
 ) => {
   return $api('/user/profile', {
     method: 'PUT',
-    body
+    body,
   })
 }
 
@@ -18,7 +18,7 @@ export const updateUserProfileAPI = (
  */
 export const getUserInfoAPI = ($api: ApiClient) => {
   return $api('/user/info', {
-    method: 'GET'
+    method: 'GET',
   })
 }
 
@@ -30,10 +30,10 @@ export const getConsumptionRecordsAPI = (
   query?: {
     skip?: number
     limit?: number
-  }
+  },
 ) => {
   return $api('/user/consumption-records', {
     method: 'GET',
-    query
+    query,
   })
 }

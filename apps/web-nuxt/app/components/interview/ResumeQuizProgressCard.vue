@@ -38,8 +38,7 @@ defineProps<{
       <article
         v-for="(event, index) in progressLogs"
         :key="`${event.type}-${event.progress}-${index}`"
-        class="progress-card__event"
-      >
+        class="progress-card__event">
         <span>{{ event.progress }}%</span>
         <p>{{ event.label || event.message || '收到事件' }}</p>
       </article>

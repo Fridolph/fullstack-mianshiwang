@@ -4,7 +4,9 @@
       <UIcon name="i-lucide-sparkles" class="size-4" />
       当前已对接 Nest 用户体系
     </div>
-    <h1 class="section-title">先把登录和用户态跑通，再接完整 AI 面试链路</h1>
+    <h1 class="section-title">
+      先把登录和用户态跑通，再接完整 AI 面试链路
+    </h1>
     <p class="section-description">
       这一阶段不再沿用旧项目里的微信扫码假设，而是直接对接当前
       NestJS 后端已经存在的 `user/register`、`user/login`、`user/info`
@@ -15,8 +17,7 @@
       <article
         v-for="item in benefits"
         :key="item.title"
-        class="auth-benefits__item"
-      >
+        class="auth-benefits__item">
         <div class="auth-benefits__icon">
           <UIcon :name="item.icon" class="size-5" />
         </div>
@@ -43,18 +44,18 @@ const benefits = [
   {
     icon: 'i-lucide-key-round',
     title: '认证闭环',
-    description: '注册、登录、持久化、鉴权跳转全部跑通。'
+    description: '注册、登录、持久化、鉴权跳转全部跑通。',
   },
   {
     icon: 'i-lucide-user-round',
     title: '用户状态',
-    description: '登录后同步用户资料与剩余服务次数。'
+    description: '登录后同步用户资料与剩余服务次数。',
   },
   {
     icon: 'i-lucide-route',
     title: '业务承接',
-    description: '后续简历押题、历史记录、报告页都直接复用这套用户态。'
-  }
+    description: '后续简历押题、历史记录、报告页都直接复用这套用户态。',
+  },
 ]
 </script>
 

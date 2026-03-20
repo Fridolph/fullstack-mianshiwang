@@ -2,7 +2,7 @@
 import {
   analyzeResumeAPI,
   continueConversationAPI,
-  generateResumeQuizSSE
+  generateResumeQuizSSE,
 } from '~/api/interview'
 import ResumeAnalysisCard from '~/components/interview/ResumeAnalysisCard.vue'
 import ResumeQuizFormCard from '~/components/interview/ResumeQuizFormCard.vue'
@@ -13,7 +13,7 @@ import { resolvePublicApiBase } from '~/utils/api-base'
 definePageMeta({
   layout: 'default',
   middleware: 'auth',
-  requiresAuth: true
+  requiresAuth: true,
 })
 
 const router = useRouter()
@@ -30,7 +30,7 @@ const activeConnection = ref<SseConnection | null>(null)
 
 const formState = computed({
   get: () => interviewStore.quizDraft,
-  set: (value) => interviewStore.setQuizDraft(value)
+  set: value => interviewStore.setQuizDraft(value),
 })
 
 const messages = computed(() => interviewStore.messages)
@@ -56,7 +56,7 @@ async function handleAnalyzeResume() {
     toast.add({
       title: '信息还不完整',
       description: validationMessage,
-      color: 'warning'
+      color: 'warning',
     })
     return
   }
@@ -67,19 +67,19 @@ async function handleAnalyzeResume() {
     const payload = await analyzeResumeAPI($api, {
       position: formState.value.positionName.trim(),
       resume: formState.value.resumeContent.trim(),
-      jobDescription: formState.value.jd.trim()
+      jobDescription: formState.value.jd.trim(),
     })
 
     interviewStore.setAnalysis(payload.analysis as Record<string, unknown>, payload.sessionId)
     toast.add({
       title: '简历分析完成',
-      color: 'success'
+      color: 'success',
     })
   } catch (error) {
     toast.add({
       title: '简历分析失败',
       description: error instanceof Error ? error.message : '请稍后重试',
-      color: 'error'
+      color: 'error',
     })
   } finally {
     loading.value = false
@@ -94,25 +94,25 @@ async function handleAskFollowUp(question: string) {
   interviewStore.addMessage({
     role: 'user',
     content: question,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   })
 
   try {
     const payload = await continueConversationAPI($api, {
       sessionId: interviewStore.sessionId,
-      question
+      question,
     })
 
     interviewStore.addMessage({
       role: 'assistant',
       content: String(payload.response || ''),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   } catch (error) {
     toast.add({
       title: '继续追问失败',
       description: error instanceof Error ? error.message : '请稍后重试',
-      color: 'error'
+      color: 'error',
     })
   } finally {
     questionLoading.value = false
@@ -135,7 +135,7 @@ function normalizeCompletePayload(event: ResumeQuizProgressEvent) {
     analysis: event.data?.analysis || [],
     company: formState.value.company,
     position: formState.value.positionName,
-    jobDescription: formState.value.jd
+    jobDescription: formState.value.jd,
   }
 }
 
@@ -154,7 +154,7 @@ async function handleGenerateQuiz() {
     toast.add({
       title: '信息还不完整',
       description: validationMessage,
-      color: 'warning'
+      color: 'warning',
     })
     return
   }
@@ -168,7 +168,7 @@ async function handleGenerateQuiz() {
     toast.add({
       title: '当前浏览器不支持 randomUUID',
       description: '请升级浏览器后再试。',
-      color: 'error'
+      color: 'error',
     })
     loading.value = false
     interviewStore.setInterviewStatus('idle')
@@ -185,7 +185,7 @@ async function handleGenerateQuiz() {
       resumeContent: formState.value.resumeContent.trim() || undefined,
       resumeURL: formState.value.resumeURL.trim() || undefined,
       requestId,
-      promptVersion: 'web-nuxt-v1'
+      promptVersion: 'web-nuxt-v1',
     },
     {
       token: userStore.token,
@@ -215,15 +215,15 @@ async function handleGenerateQuiz() {
           toast.add({
             title: '流式押题失败',
             description: error.message,
-            color: 'error'
+            color: 'error',
           })
         },
         onComplete() {
           activeConnection.value = null
           loading.value = false
-        }
-      }
-    }
+        },
+      },
+    },
   )
 }
 

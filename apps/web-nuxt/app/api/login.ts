@@ -7,7 +7,7 @@ import type { LoginPayload, RegisterPayload } from '~/types/domain'
 export const loginAPI = ($api: ApiClient, body: LoginPayload) => {
   return $api('/user/login', {
     method: 'POST',
-    body
+    body,
   })
 }
 
@@ -17,7 +17,7 @@ export const loginAPI = ($api: ApiClient, body: LoginPayload) => {
 export const registerAPI = ($api: ApiClient, body: RegisterPayload) => {
   return $api('/user/register', {
     method: 'POST',
-    body
+    body,
   })
 }
 
@@ -29,7 +29,7 @@ export const generateWechatQRCodeAPI = (_$api: ApiClient) =>
 
 export const checkWechatQRCodeStatusAPI = (
   _$api: ApiClient,
-  _qrCodeId: string
+  _qrCodeId: string,
 ) =>
   Promise.reject(new Error('当前后端未提供微信扫码登录接口，请使用邮箱密码登录'))
 

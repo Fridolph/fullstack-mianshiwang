@@ -23,7 +23,7 @@ function submitQuestion() {
 }
 
 const renderedAnalysis = computed(() =>
-  props.analysis ? JSON.stringify(props.analysis, null, 2) : ''
+  props.analysis ? JSON.stringify(props.analysis, null, 2) : '',
 )
 </script>
 
@@ -59,8 +59,7 @@ const renderedAnalysis = computed(() =>
         color="neutral"
         :loading="loading"
         icon="i-lucide-message-square-share"
-        @click="submitQuestion"
-      >
+        @click="submitQuestion">
         发起追问
       </UButton>
     </div>
@@ -69,8 +68,7 @@ const renderedAnalysis = computed(() =>
       <article
         v-for="(message, index) in messages"
         :key="`${message.role}-${index}`"
-        class="analysis-message"
-      >
+        class="analysis-message">
         <span>{{ message.role === 'assistant' ? 'AI' : '我' }}</span>
         <p>{{ message.content }}</p>
       </article>

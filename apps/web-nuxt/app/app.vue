@@ -3,16 +3,16 @@ const config = useRuntimeConfig()
 
 useHead({
   htmlAttrs: {
-    lang: 'zh-CN'
+    lang: 'zh-CN',
   },
-  link: [{ rel: 'icon', href: '/favicon.ico' }]
+  link: [{ rel: 'icon', href: '/favicon.ico' }],
 })
 
 useSeoMeta({
   title: config.public.appName,
   description: config.public.appDescription,
   ogTitle: config.public.appName,
-  ogDescription: config.public.appDescription
+  ogDescription: config.public.appDescription,
 })
 </script>
 

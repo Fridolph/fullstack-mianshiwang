@@ -2,7 +2,7 @@ import type {
   ApiClient,
   ResumeQuizProgressEvent,
   SseConnection,
-  SseRequestOptions
+  SseRequestOptions,
 } from '~/types/api'
 import type { InterviewMessage } from '~/types/domain'
 
@@ -17,7 +17,7 @@ import type { InterviewMessage } from '~/types/domain'
 const ssePost = (
   path: string,
   params: Record<string, unknown>,
-  options?: SseRequestOptions<ResumeQuizProgressEvent>
+  options?: SseRequestOptions<ResumeQuizProgressEvent>,
 ): SseConnection => {
   if (typeof window === 'undefined') {
     return { close: () => {} }
@@ -35,7 +35,7 @@ const ssePost = (
 
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        Accept: 'text/event-stream'
+        'Accept': 'text/event-stream',
       }
 
       if (token) {
@@ -47,7 +47,7 @@ const ssePost = (
         headers,
         body: JSON.stringify(params),
         credentials: 'include',
-        signal: controller.signal
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -91,7 +91,7 @@ const ssePost = (
             onMessage?.({
               type: 'progress',
               progress: 0,
-              message: data
+              message: data,
             })
           }
         }
@@ -106,7 +106,7 @@ const ssePost = (
   void connect()
 
   return {
-    close: () => controller?.abort()
+    close: () => controller?.abort(),
   }
 }
 
@@ -119,11 +119,11 @@ export const analyzeResumeAPI = (
     resume: string
     jobDescription: string
     position: string
-  }
+  },
 ) => {
   return $api('/interview/analyze-resume', {
     method: 'POST',
-    body
+    body,
   })
 }
 
@@ -135,11 +135,11 @@ export const continueConversationAPI = (
   body: {
     sessionId: string
     question: string
-  }
+  },
 ) => {
   return $api('/interview/continue-conversation', {
     method: 'POST',
-    body
+    body,
   })
 }
 
@@ -148,7 +148,7 @@ export const continueConversationAPI = (
  */
 export const generateResumeQuizSSE = (
   params: Record<string, unknown>,
-  options?: SseRequestOptions<ResumeQuizProgressEvent>
+  options?: SseRequestOptions<ResumeQuizProgressEvent>,
 ) => {
   return ssePost('/interview/resume/quiz/stream', params, options)
 }
@@ -158,7 +158,7 @@ export const generateResumeQuizSSE = (
  */
 export const getAnalysisReportAPI = ($api: ApiClient, resultId: string) => {
   return $api(`/interview/analysis/report/${resultId}`, {
-    method: 'GET'
+    method: 'GET',
   })
 }
 
@@ -173,14 +173,14 @@ export interface AnalysisConversationResponse {
 export const getInterviewResumeHistoryAPI = (
   $api: ApiClient,
   page: number,
-  limit: number
+  limit: number,
 ) => {
   return $api('/interview/resume/quiz/history', {
     method: 'GET',
     query: {
       page,
-      limit
-    }
+      limit,
+    },
   })
 }
 
@@ -190,14 +190,14 @@ export const getInterviewResumeHistoryAPI = (
 export const getInterviewSpecialHistoryAPI = (
   $api: ApiClient,
   page: number,
-  limit: number
+  limit: number,
 ) => {
   return $api('/interview/special/history', {
     method: 'GET',
     query: {
       page,
-      limit
-    }
+      limit,
+    },
   })
 }
 
@@ -207,14 +207,14 @@ export const getInterviewSpecialHistoryAPI = (
 export const getInterviewBehaviorHistoryAPI = (
   $api: ApiClient,
   page: number,
-  limit: number
+  limit: number,
 ) => {
   return $api('/interview/behavior/history', {
     method: 'GET',
     query: {
       page,
-      limit
-    }
+      limit,
+    },
   })
 }
 
@@ -223,10 +223,10 @@ export const getInterviewBehaviorHistoryAPI = (
  */
 export const getInterviewResultDetailAPI = (
   $api: ApiClient,
-  resultId: string
+  resultId: string,
 ) => {
   return $api(`/interview/resume/quiz/result/${resultId}`, {
-    method: 'GET'
+    method: 'GET',
   })
 }
 
@@ -235,11 +235,11 @@ export const getInterviewResultDetailAPI = (
  */
 export const generateResumeQuizAPI = (
   $api: ApiClient,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
 ) => {
   return $api('/interview/resume/quiz', {
     method: 'POST',
-    body: params
+    body: params,
   })
 }
 
@@ -248,7 +248,7 @@ export const generateResumeQuizAPI = (
  */
 export const startMockInterviewAPI = (
   params: Record<string, unknown>,
-  options?: SseRequestOptions<ResumeQuizProgressEvent>
+  options?: SseRequestOptions<ResumeQuizProgressEvent>,
 ) => {
   return ssePost('/interview/mock/start', params, options)
 }
@@ -258,7 +258,7 @@ export const startMockInterviewAPI = (
  */
 export const answerInterviewQuestionAPI = (
   params: Record<string, unknown>,
-  options?: SseRequestOptions<ResumeQuizProgressEvent>
+  options?: SseRequestOptions<ResumeQuizProgressEvent>,
 ) => {
   return ssePost('/interview/mock/answer', params, options)
 }
@@ -281,28 +281,28 @@ export const endInterviewAPI = ($api: ApiClient, resultId: string) => {
 
 export const getMockInterviewQAResultAPI = (
   $api: ApiClient,
-  resultId: string
+  resultId: string,
 ) => {
   return $api(`/interview/mock/result/${resultId}/qa`, {
-    method: 'GET'
+    method: 'GET',
   })
 }
 
 export const getMockInterviewSessionHistoryAPI = (
   $api: ApiClient,
-  resultId: string
+  resultId: string,
 ) => {
   return $api(`/interview/mock/history/${resultId}`, {
-    method: 'GET'
+    method: 'GET',
   })
 }
 
 export const exchangePackageAPI = (
   $api: ApiClient,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
 ) => {
   return $api('/interview/exchange-package', {
     method: 'POST',
-    body
+    body,
   })
 }

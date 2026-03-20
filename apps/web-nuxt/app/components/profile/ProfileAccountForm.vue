@@ -22,7 +22,7 @@ const form = reactive({
   nickname: '',
   email: '',
   phone: '',
-  avatar: ''
+  avatar: '',
 })
 
 watch(
@@ -33,7 +33,7 @@ watch(
     form.phone = value?.phone ?? ''
     form.avatar = value?.avatar ?? ''
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 async function handleSubmit() {
@@ -44,20 +44,20 @@ async function handleSubmit() {
       nickname: form.nickname.trim() || undefined,
       email: form.email.trim() || undefined,
       phone: form.phone.trim() || undefined,
-      avatar: form.avatar.trim() || undefined
+      avatar: form.avatar.trim() || undefined,
     })
 
     emit('updated', payload as Record<string, unknown>)
 
     toast.add({
       title: '资料更新成功',
-      color: 'success'
+      color: 'success',
     })
   } catch (error) {
     toast.add({
       title: '资料更新失败',
       description: error instanceof Error ? error.message : '请稍后重试',
-      color: 'error'
+      color: 'error',
     })
   } finally {
     loading.value = false
@@ -78,8 +78,7 @@ async function handleSubmit() {
       <UButton
         :loading="loading"
         icon="i-lucide-save"
-        @click="handleSubmit"
-      >
+        @click="handleSubmit">
         保存资料
       </UButton>
     </div>

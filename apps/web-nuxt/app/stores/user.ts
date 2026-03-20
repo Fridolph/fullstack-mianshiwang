@@ -26,11 +26,11 @@ export const useUserStore = defineStore(
       userInfo: null,
       token: '',
       resumes: [],
-      profileLoaded: false
+      profileLoaded: false,
     }),
     getters: {
-      isLogin: (state) => Boolean(state.token),
-      canAddResume: (state) => state.resumes.length < MAX_RESUME_COUNT
+      isLogin: state => Boolean(state.token),
+      canAddResume: state => state.resumes.length < MAX_RESUME_COUNT,
     },
     actions: {
       // 登录成功后，一次性把 token 和基础用户信息写入 store。
@@ -49,7 +49,7 @@ export const useUserStore = defineStore(
       updateUserInfo(userInfo: Partial<UserInfo>) {
         this.userInfo = {
           ...(this.userInfo || {}),
-          ...userInfo
+          ...userInfo,
         }
         this.profileLoaded = true
       },
@@ -62,7 +62,7 @@ export const useUserStore = defineStore(
         this.resumes.unshift(resume)
       },
       removeResume(resumeId: string) {
-        this.resumes = this.resumes.filter((resume) => resume.resumeId !== resumeId)
+        this.resumes = this.resumes.filter(resume => resume.resumeId !== resumeId)
       },
       // 强制从后端重新拉一次用户资料，适合登录后首次同步或手动刷新资料。
       async fetchUserProfile($api: ApiClient) {
@@ -95,10 +95,10 @@ export const useUserStore = defineStore(
         this.userInfo = null
         this.resumes = []
         this.profileLoaded = false
-      }
+      },
     },
     persist: {
-      pick: ['token', 'userInfo', 'resumes', 'profileLoaded']
-    }
-  }
+      pick: ['token', 'userInfo', 'resumes', 'profileLoaded'],
+    },
+  },
 )
