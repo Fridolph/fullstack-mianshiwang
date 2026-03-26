@@ -109,7 +109,12 @@ export const RESUME_QUIZ_PROMPT_QUESTIONS_ONLY = `# 角色设定
 4. **内容清楚**：每个答案内容要清楚有深度，字数在 200 - 300 字之间
 5. **格式要求**：答案必须是单行文本，段落之间用空格分隔（不要使用换行符）
 
----
+## 语言要求
+1. **所有自然语言内容必须使用简体中文**
+2. \`question\`、\`answer\`、\`tips\`、\`reasoning\`、\`summary\` 必须全部输出为中文
+3. 仅 \`category\`、\`difficulty\` 保持英文枚举值，不要翻译
+4. 技术名词如 Vue、React、TypeScript、Webpack、Vite 可以保留英文原名，但整句说明必须是中文
+5. 不要输出英文问句、英文答案、英文总结，也不要中英混杂地写完整句子
 
 # 二、综合评估要求
 
@@ -145,6 +150,9 @@ export const RESUME_QUIZ_PROMPT_QUESTIONS_ONLY = `# 角色设定
 - 不要在JSON字符串中直接换行
 - 如需换行效果，段落之间用空格分隔即可
 - 确保所有引号、反斜杠等特殊字符都已正确转义
+7. ⚠️ **输出语言要求**：
+- 除 \`category\`、\`difficulty\` 外，其余文本字段一律使用简体中文
+- 如果输出了英文完整句子，视为不符合要求，需要重新生成
 
 现在开始生成面试问题和综合评估！`
 
@@ -267,6 +275,16 @@ export const RESUME_QUIZ_PROMPT_ANALYSIS_ONLY = `# 角色设定
 
 ---
 
+# 八、语言要求
+
+1. **所有自然语言内容必须使用简体中文**
+2. \`matchLevel\`、\`proficiency\`、\`reason\`、\`description\`、\`strengths\`、\`weaknesses\`、\`knowledgeGaps\`、\`interviewTips\` 必须全部输出为中文
+3. 仅 \`priority\` 保持 \`high\` / \`medium\` / \`low\` 英文枚举值，不要翻译
+4. 技术名词如 Vue、React、TypeScript、Webpack、Vite 可以保留英文原名，但整句说明必须是中文
+5. 不要输出英文完整句子，也不要中英混杂地写完整段落
+
+---
+
 # 输出格式
 
 严格按照以下JSON格式输出：
@@ -288,5 +306,8 @@ export const RESUME_QUIZ_PROMPT_ANALYSIS_ONLY = `# 角色设定
 - 所有文本内容必须是单行字符串
 - 不要在JSON字符串中直接换行
 - 确保所有引号、反斜杠等特殊字符都已正确转义
+9. ⚠️ **输出语言要求**：
+- 除 \`priority\` 外，其余文本字段一律使用简体中文
+- 如果输出了英文完整句子，视为不符合要求，需要重新生成
 
 现在开始生成匹配度分析报告！`

@@ -1,5 +1,5 @@
 import { DocumentParserService } from './document-parser.service'
-import { v4 as uuidv4 } from 'uuid'
+import { v4 as uuidV4 } from 'uuid'
 import { ConversationContinuationService } from './conversation-continuation.service'
 import {
   BadRequestException,
@@ -10,6 +10,7 @@ import {
 import { ConfigService } from '@nestjs/config'
 import { SessionManager } from './../../ai/services/session.manager'
 import { ResumeAnalysisService } from './resume-analysis.service'
+import { InterviewAIService } from './interview-ai.service'
 import { RESUME_ANALYSIS_SYSTEM_MESSAGE } from '../prompts/resume-analysis.prompts'
 import { Subject } from 'rxjs'
 import { ResumeQuizDto } from '../dto/resume-quiz.dto'
@@ -35,7 +36,7 @@ import { User, UserDocument } from '../../user/schemas/user.schema'
 import {
   RESUME_QUIZ_PROMPT_ANALYSIS_ONLY,
   RESUME_QUIZ_PROMPT_QUESTIONS_ONLY,
-} from '../prompts/resume-quiz.propmts'
+} from '../prompts/resume-quiz.prompts'
 
 // 进度事件
 export interface ProgressEvent {
@@ -47,6 +48,22 @@ export interface ProgressEvent {
   data?: any
   error?: string
   stage?: 'prepare' | 'generating' | 'saving' | 'done'
+}
+
+interface ResumeQuizExecutionContext {
+  cancelled: boolean
+}
+
+interface ResumeQuizStreamHandle {
+  stream: Subject<ProgressEvent>
+  cancel: () => void
+}
+
+class ResumeQuizCancelledError extends Error {
+  constructor(message = '客户端已断开，已取消生成') {
+    super(message)
+    this.name = 'ResumeQuizCancelledError'
+  }
 }
 
 /**
@@ -70,6 +87,7 @@ export class InterviewService {
     private conversationContinuationService: ConversationContinuationService,
     private documentParserService: DocumentParserService,
     private aiModelFactory: AIModelFactory,
+    private interviewAIService: InterviewAIService,
     @InjectModel(ConsumptionRecord.name)
     private consumptionRecordModel: Model<ConsumptionRecordDocument>,
     @InjectModel(ResumeQuizResult.name)
@@ -87,51 +105,53 @@ export class InterviewService {
     reasoning: z.string().optional().nullable(),
   })
 
-  private readonly resumeQuizQuestionsParser = StructuredOutputParser.fromZodSchema(
-    z.object({
-      questions: z.array(this.resumeQuizQuestionSchema).min(1).max(12),
-      summary: z.string(),
-    }),
-  )
+  private readonly resumeQuizQuestionsParser =
+    StructuredOutputParser.fromZodSchema(
+      z.object({
+        questions: z.array(this.resumeQuizQuestionSchema).min(1).max(12),
+        summary: z.string(),
+      }),
+    )
 
-  private readonly resumeQuizAnalysisParser = StructuredOutputParser.fromZodSchema(
-    z.object({
-      matchScore: z.number().min(0).max(100),
-      matchLevel: z.string(),
-      matchedSkills: z
-        .array(
-          z.object({
-            skill: z.string(),
-            matched: z.boolean(),
-            proficiency: z.string().optional().nullable(),
-          }),
-        )
-        .default([]),
-      missingSkills: z.array(z.string()).default([]),
-      knowledgeGaps: z.array(z.string()).default([]),
-      learningPriorities: z
-        .array(
-          z.object({
-            topic: z.string(),
-            priority: z.enum(['high', 'medium', 'low']),
-            reason: z.string(),
-          }),
-        )
-        .default([]),
-      radarData: z
-        .array(
-          z.object({
-            dimension: z.string(),
-            score: z.number().min(0).max(100),
-            description: z.string().optional().nullable(),
-          }),
-        )
-        .default([]),
-      strengths: z.array(z.string()).default([]),
-      weaknesses: z.array(z.string()).default([]),
-      interviewTips: z.array(z.string()).default([]),
-    }),
-  )
+  private readonly resumeQuizAnalysisParser =
+    StructuredOutputParser.fromZodSchema(
+      z.object({
+        matchScore: z.number().min(0).max(100),
+        matchLevel: z.string(),
+        matchedSkills: z
+          .array(
+            z.object({
+              skill: z.string(),
+              matched: z.boolean(),
+              proficiency: z.string().optional().nullable(),
+            }),
+          )
+          .default([]),
+        missingSkills: z.array(z.string()).default([]),
+        knowledgeGaps: z.array(z.string()).default([]),
+        learningPriorities: z
+          .array(
+            z.object({
+              topic: z.string(),
+              priority: z.enum(['high', 'medium', 'low']),
+              reason: z.string(),
+            }),
+          )
+          .default([]),
+        radarData: z
+          .array(
+            z.object({
+              dimension: z.string(),
+              score: z.number().min(0).max(100),
+              description: z.string().optional().nullable(),
+            }),
+          )
+          .default([]),
+        strengths: z.array(z.string()).default([]),
+        weaknesses: z.array(z.string()).default([]),
+        interviewTips: z.array(z.string()).default([]),
+      }),
+    )
 
   /**
    * 分析简历（首轮，创建会话）
@@ -273,6 +293,14 @@ export class InterviewService {
       }
     }
 
+    if (record.status === ConsumptionStatus.CANCELLED) {
+      return {
+        ...basePayload,
+        message: '请求已取消，请使用新的 requestId 重新发起',
+        result: null,
+      }
+    }
+
     const result = record.resultId
       ? await this.resumeQuizResultModel
           .findOne({
@@ -319,13 +347,23 @@ export class InterviewService {
   generateResumeQuizWithProgress(
     userId: string,
     dto: ResumeQuizDto,
-  ): Subject<ProgressEvent> {
+  ): ResumeQuizStreamHandle {
     const subject = new Subject<ProgressEvent>()
+    const context: ResumeQuizExecutionContext = {
+      cancelled: false,
+    }
+
     // 推迟到当前调用栈结束后再开始推送，避免首条事件在 subscribe 之前丢失
     queueMicrotask(() => {
-      void this.executeResumeQuiz(userId, dto, subject)
+      void this.executeResumeQuiz(userId, dto, subject, context)
     })
-    return subject
+
+    return {
+      stream: subject,
+      cancel: () => {
+        context.cancelled = true
+      },
+    }
   }
 
   private emitComplete(
@@ -354,22 +392,23 @@ export class InterviewService {
     userId: string,
     dto: ResumeQuizDto,
     progressSubject?: Subject<ProgressEvent>,
+    context?: ResumeQuizExecutionContext,
   ) {
     let consumptionRecord: any = null
     let didConsumeCount = false
-    const recordId = uuidv4()
-    const resultId = uuidv4()
+    let didCreateResult = false
+    const recordId = uuidV4()
+    const resultId = uuidV4()
 
     try {
+      this.throwIfResumeQuizCancelled(context)
+
       // 先进行幂等性检查 - 优化中最关键点一步，防止重复生成
       if (dto.requestId) {
         // 查库中是否存在 requestId 记录
         const existingRecord = await this.consumptionRecordModel.findOne({
           userId,
           'metadata.requestId': dto.requestId,
-          status: {
-            $in: [ConsumptionStatus.SUCCESS, ConsumptionStatus.PENDING],
-          },
         })
 
         if (existingRecord) {
@@ -383,43 +422,55 @@ export class InterviewService {
             this.logger.log(
               `重复请求，命中缓存，返已有结果: requestId=${dto.requestId}`,
             )
+            // 查询之前生成的结果
+            const existingResult = await this.resumeQuizResultModel.findOne({
+              resultId: existingRecord.resultId,
+            })
+
+            if (!existingResult) throw new BadRequestException('结果不存在')
+
+            const cachedPayload = {
+              resultId: existingResult.resultId,
+              questions: existingResult.questions,
+              summary: existingResult.summary,
+              matchScore: existingResult.matchScore,
+              matchLevel: existingResult.matchLevel,
+              matchedSkills: existingResult.matchedSkills,
+              missingSkills: existingResult.missingSkills,
+              knowledgeGaps: existingResult.knowledgeGaps,
+              learningPriorities: this.normalizeLearningPriorities(
+                existingResult.learningPriorities,
+              ),
+              radarData: existingResult.radarData,
+              strengths: existingResult.strengths,
+              weaknesses: existingResult.weaknesses,
+              interviewTips: existingResult.interviewTips,
+              remainingCount: await this.getRemainingCount(userId, 'resume'),
+              consmptionRecordId: existingRecord.recordId,
+              isFromCache: true,
+            }
+
+            this.emitComplete(progressSubject, cachedPayload)
+
+            // 直接返回，不再执行后续步骤，不再扣费
+            return cachedPayload
           }
 
-          // 查询之前生成的结果
-          const existingResult = await this.resumeQuizResultModel.findOne({
-            resultId: existingRecord.resultId,
-          })
-
-          if (!existingResult) throw new BadRequestException('结果不存在')
-
-          const cachedPayload = {
-            resultId: existingResult.resultId,
-            questions: existingResult.questions,
-            summary: existingResult.summary,
-            matchScore: existingResult.matchScore,
-            matchLevel: existingResult.matchLevel,
-            matchedSkills: existingResult.matchedSkills,
-            missingSkills: existingResult.missingSkills,
-            knowledgeGaps: existingResult.knowledgeGaps,
-            learningPriorities: this.normalizeLearningPriorities(
-              existingResult.learningPriorities,
-            ),
-            radarData: existingResult.radarData,
-            strengths: existingResult.strengths,
-            weaknesses: existingResult.weaknesses,
-            interviewTips: existingResult.interviewTips,
-            remainingCount: await this.getRemainingCount(userId, 'resume'),
-            consmptionRecordId: existingRecord.recordId,
-            isFromCache: true,
+          if (existingRecord.status === ConsumptionStatus.CANCELLED) {
+            throw new BadRequestException(
+              '该 requestId 已取消，请使用新的 requestId 重新发起',
+            )
           }
 
-          this.emitComplete(progressSubject, cachedPayload)
-
-          // 直接返回，不再执行后续步骤，不再扣费
-          return cachedPayload
+          if (existingRecord.status === ConsumptionStatus.FAILED) {
+            throw new BadRequestException(
+              '该 requestId 已失败，请使用新的 requestId 重新发起',
+            )
+          }
         }
       }
 
+      this.throwIfResumeQuizCancelled(context)
       this.emitProgress(progressSubject, 5, '正在校验请求参数...', 'prepare')
 
       // 步骤1 检查并扣除次数（原子操作）
@@ -440,10 +491,16 @@ export class InterviewService {
       }
       didConsumeCount = true
 
+      this.throwIfResumeQuizCancelled(context)
       this.logger.log(
         `用户扣费成功: userId=${userId}, 扣费前=${user.resumeRemainingCount}, 扣费后=${user.resumeRemainingCount - 1}`,
       )
-      this.emitProgress(progressSubject, 20, '已校验剩余次数，开始生成押题...', 'prepare')
+      this.emitProgress(
+        progressSubject,
+        20,
+        '已校验剩余次数，开始生成押题...',
+        'prepare',
+      )
 
       // 步骤2 创建消费记录 pending
       consumptionRecord = await this.consumptionRecordModel.create({
@@ -470,20 +527,28 @@ export class InterviewService {
         },
         startedAt: new Date(),
       })
+      this.throwIfResumeQuizCancelled(context)
       this.logger.log(`消费记录创建成功: recordId=${recordId}`)
-      this.emitProgress(progressSubject, 40, '已创建消费记录，正在生成结果...', 'generating')
+      this.emitProgress(
+        progressSubject,
+        40,
+        '已创建消费记录，正在生成结果...',
+        'generating',
+      )
 
       // 如果没有 requestId 或 requestId 不存在，则继续执行正常的生成流程逻辑
       this.logger.log(
         `开始生成简历押题 userId=${userId}, positionName=${dto.positionName}`,
       )
       const resumeContent = await this.extractResumeContent(userId, dto)
+      this.throwIfResumeQuizCancelled(context)
       const salaryRange = this.formatSalaryRange(dto.minSalary, dto.maxSalary)
       const aiResult = await this.generateResumeQuizResult(
         dto,
         resumeContent,
         salaryRange,
       )
+      this.throwIfResumeQuizCancelled(context)
       // 阶段3 保存结果阶段
       // const quizResult =
       await this.resumeQuizResultModel.create({
@@ -514,8 +579,15 @@ export class InterviewService {
         aiModel: this.getCurrentAiModelName(),
         promptVersion: dto.promptVersion || 'v2',
       })
+      didCreateResult = true
+      this.throwIfResumeQuizCancelled(context)
       this.logger.log(`结果保存成功: resultId=${resultId}`)
-      this.emitProgress(progressSubject, 80, '结果已保存，正在整理返回数据...', 'saving')
+      this.emitProgress(
+        progressSubject,
+        80,
+        '结果已保存，正在整理返回数据...',
+        'saving',
+      )
 
       // 更新消费记录为成功
       await this.consumptionRecordModel.findByIdAndUpdate(
@@ -532,6 +604,7 @@ export class InterviewService {
           },
         },
       )
+      this.throwIfResumeQuizCancelled(context)
       this.logger.log(
         `消费记录已更新为成功状态: recordId=${consumptionRecord.recordId}`,
       )
@@ -540,6 +613,7 @@ export class InterviewService {
         resultId,
         questions: aiResult?.questions || [],
         summary: aiResult?.summary,
+        // 匹配度分析
         matchScore: aiResult?.matchScore,
         matchLevel: aiResult?.matchLevel,
         matchedSkills: aiResult?.matchedSkills || [],
@@ -554,19 +628,39 @@ export class InterviewService {
         remainingCount: await this.getRemainingCount(userId, 'resume'),
         consmptionRecordId: recordId,
       }
-
+      // 发送完成事件
       this.emitComplete(progressSubject, completedPayload)
+      this.emitProgress(
+        progressSubject,
+        100,
+        `所有分析完成, 正在保存结果 ... 响应数据为 ${JSON.stringify(completedPayload)}`,
+      )
       return completedPayload
-    } catch (error) {
+    }
+    catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const stack = error instanceof Error ? error.stack : undefined
+      const isCancelled = error instanceof ResumeQuizCancelledError
 
-      this.logger.error(
-        `简历押题生成失败: userId=${userId}, error=${message}`,
-        stack,
-      )
+      if (isCancelled) {
+        this.logger.warn(`简历押题已取消: userId=${userId}, reason=${message}`)
+      } else {
+        this.logger.error(
+          `简历押题生成失败: userId=${userId}, error=${message}`,
+          stack,
+        )
+      }
       // 失败回滚流程
       try {
+        if (didCreateResult) {
+          await this.resumeQuizResultModel.deleteOne({
+            resultId,
+            userId,
+          })
+          didCreateResult = false
+          this.logger.warn(`已清理未完成结果: resultId=${resultId}`)
+        }
+
         // 1. 返还次数（最重要）
         if (didConsumeCount) {
           this.logger.log(`开始退还次数: userId=${userId}`)
@@ -580,10 +674,12 @@ export class InterviewService {
             consumptionRecord._id,
             {
               $set: {
-                status: ConsumptionStatus.FAILED, // 标记为失败
+                status: isCancelled
+                  ? ConsumptionStatus.CANCELLED
+                  : ConsumptionStatus.FAILED,
                 errorMessage: message,
                 errorStack:
-                  process.env.NODE_ENV === 'development'
+                  !isCancelled && process.env.NODE_ENV === 'development'
                     ? stack // 开发环境记录堆栈
                     : undefined, // 生产环境 基于隐私考虑不记录
                 failedAt: new Date(),
@@ -607,6 +703,13 @@ ${refundError instanceof Error ? refundError.stack : ''}
 `,
         )
         // TODO 后续可以添加 邮件告警等逻辑
+      }
+
+      if (isCancelled) {
+        if (progressSubject && !progressSubject.closed) {
+          progressSubject.complete()
+        }
+        return
       }
 
       // 发送错误事件给前端
@@ -773,6 +876,12 @@ ${refundError instanceof Error ? refundError.stack : ''}
     }
   }
 
+  private throwIfResumeQuizCancelled(context?: ResumeQuizExecutionContext) {
+    if (context?.cancelled) {
+      throw new ResumeQuizCancelledError()
+    }
+  }
+
   private async generateResumeQuizResult(
     dto: ResumeQuizDto,
     resumeContent: string,
@@ -880,10 +989,7 @@ ${refundError instanceof Error ? refundError.stack : ''}
   private normalizeQuestionCategory(category?: string): QuestionCategory {
     const normalized = this.normalizeAiLabel(category)
 
-    if (
-      normalized.includes('project') ||
-      normalized.includes('项目')
-    ) {
+    if (normalized.includes('project') || normalized.includes('项目')) {
       return QuestionCategory.PROJECT
     }
 
@@ -911,9 +1017,7 @@ ${refundError instanceof Error ? refundError.stack : ''}
     return QuestionCategory.TECHNICAL
   }
 
-  private normalizeQuestionDifficulty(
-    difficulty?: string,
-  ): QuestionDifficulty {
+  private normalizeQuestionDifficulty(difficulty?: string): QuestionDifficulty {
     const normalized = this.normalizeAiLabel(difficulty)
 
     if (

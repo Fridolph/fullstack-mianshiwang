@@ -73,6 +73,7 @@ export class InterviewController {
     @Res() res: Response,
   ) {
     const userId = req.user.userId
+    let clientDisconnected = false
     // 设置SSE响应头
     res.status(200)
     res.setHeader('Content-Type', 'text/event-stream')
@@ -82,28 +83,41 @@ export class InterviewController {
     res.flushHeaders?.()
 
     // 订阅进度事件
-    const subscription = this.interviewService
-      .generateResumeQuizWithProgress(userId, dto)
-      .subscribe({
-        next: (event) => {
-          // 发送SSE事件
-          res.write(`data: ${JSON.stringify(event)}\n\n`)
-        },
-        error: (error) => {
-          const message = error instanceof Error ? error.message : String(error)
-          this.logger.error(`简历押题流失败: ${message}`, error)
-          // 发送错误事件
-          res.write(
-            `data: ${JSON.stringify({ type: 'error', error: message })}\n\n`,
-          )
+    const { stream, cancel } =
+      this.interviewService.generateResumeQuizWithProgress(userId, dto)
+
+    const subscription = stream.subscribe({
+      next: (event) => {
+        if (clientDisconnected || res.writableEnded) {
+          return
+        }
+        // 发送SSE事件
+        res.write(`data: ${JSON.stringify(event)}\n\n`)
+      },
+      error: (error) => {
+        const message = error instanceof Error ? error.message : String(error)
+        this.logger.error(`简历押题流失败: ${message}`, error)
+        if (clientDisconnected || res.writableEnded) {
+          return
+        }
+        // 发送错误事件
+        res.write(
+          `data: ${JSON.stringify({ type: 'error', error: message })}\n\n`,
+        )
+        res.end()
+      },
+      complete: () => {
+        if (!clientDisconnected && !res.writableEnded) {
           res.end()
-        },
-        complete: () => res.end(), // 完成后关闭连接
-      })
+        }
+      }, // 完成后关闭连接
+    })
 
     // 客户端断开连接时取消订阅
-    req.on('close', () => {
+    req.once('close', () => {
+      clientDisconnected = true
       this.logger.log(`客户端断开简历押题流 userId=${userId}`)
+      cancel()
       subscription.unsubscribe()
     })
   }
