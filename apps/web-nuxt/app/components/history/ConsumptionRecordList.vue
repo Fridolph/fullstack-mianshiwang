@@ -17,6 +17,7 @@ const statusLabelMap: Record<string, string> = {
   pending: '处理中',
   success: '已完成',
   failed: '已失败',
+  cancelled: '已取消',
 }
 
 function formatDate(value?: string) {
@@ -35,6 +36,7 @@ function resolveTypeLabel(type?: string) {
 function resolveStatusColor(status?: string) {
   if (status === 'success') return 'success'
   if (status === 'failed') return 'error'
+  if (status === 'cancelled') return 'neutral'
   return 'warning'
 }
 </script>
@@ -45,7 +47,7 @@ function resolveStatusColor(status?: string) {
       <div>
         <h2>服务记录</h2>
         <p class="section-description">
-          当前接入的是后端 `GET /user/consumption-records`，展示你已经触发过的服务消费记录。
+          点击任意记录即可进入详情页，查看这次服务的输入快照、处理结果与保留的历史对话。
         </p>
       </div>
       <UBadge color="neutral" variant="soft">
@@ -64,9 +66,10 @@ function resolveStatusColor(status?: string) {
     </div>
 
     <div v-else class="history-list__body">
-      <article
+      <NuxtLink
         v-for="record in records"
         :key="record.recordId || record._id"
+        :to="`/history/${record.recordId || record._id}`"
         class="history-item">
         <div class="history-item__main">
           <div class="history-item__title-row">
@@ -89,7 +92,8 @@ function resolveStatusColor(status?: string) {
             <span v-if="record.errorMessage">· {{ record.errorMessage }}</span>
           </p>
         </div>
-      </article>
+        <UIcon name="i-lucide-chevron-right" class="history-item__arrow size-5" />
+      </NuxtLink>
     </div>
   </section>
 </template>
@@ -126,10 +130,24 @@ function resolveStatusColor(status?: string) {
 }
 
 .history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   padding: 18px;
   border: 1px solid var(--app-border);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.66);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.history-item:hover {
+  border-color: rgba(5, 150, 105, 0.2);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
 }
 
 .history-item__title-row {
@@ -155,5 +173,10 @@ function resolveStatusColor(status?: string) {
   margin-top: 8px;
   color: var(--app-muted);
   line-height: 1.7;
+}
+
+.history-item__arrow {
+  flex-shrink: 0;
+  color: var(--app-muted);
 }
 </style>

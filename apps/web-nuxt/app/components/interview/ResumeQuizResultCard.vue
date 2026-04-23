@@ -36,6 +36,103 @@ defineProps<{
         <p>{{ report.summary }}</p>
       </div>
 
+      <div
+        v-if="report.matchedSkills?.length || report.missingSkills?.length"
+        class="result-card__section">
+        <h3>岗位匹配</h3>
+        <div class="result-card__grid">
+          <article class="result-card__panel">
+            <p class="result-card__panel-title">
+              已匹配技能
+            </p>
+            <div
+              v-if="report.matchedSkills?.length"
+              class="result-card__chips">
+              <span
+                v-for="item in report.matchedSkills"
+                :key="item.skill"
+                class="result-card__chip result-card__chip--success">
+                {{ item.skill }}
+              </span>
+            </div>
+            <p v-else class="result-card__muted">
+              暂无已匹配技能数据
+            </p>
+          </article>
+
+          <article class="result-card__panel">
+            <p class="result-card__panel-title">
+              待补强技能
+            </p>
+            <div
+              v-if="report.missingSkills?.length"
+              class="result-card__chips">
+              <span
+                v-for="item in report.missingSkills"
+                :key="item"
+                class="result-card__chip result-card__chip--warning">
+                {{ item }}
+              </span>
+            </div>
+            <p v-else class="result-card__muted">
+              当前暂无明显缺口
+            </p>
+          </article>
+        </div>
+      </div>
+
+      <div
+        v-if="report.strengths?.length || report.weaknesses?.length || report.interviewTips?.length"
+        class="result-card__section">
+        <h3>面试建议</h3>
+        <div class="result-card__grid">
+          <article
+            v-if="report.strengths?.length"
+            class="result-card__panel">
+            <p class="result-card__panel-title">
+              优势亮点
+            </p>
+            <ul class="result-card__list">
+              <li
+                v-for="item in report.strengths"
+                :key="item">
+                {{ item }}
+              </li>
+            </ul>
+          </article>
+
+          <article
+            v-if="report.weaknesses?.length"
+            class="result-card__panel">
+            <p class="result-card__panel-title">
+              风险提醒
+            </p>
+            <ul class="result-card__list">
+              <li
+                v-for="item in report.weaknesses"
+                :key="item">
+                {{ item }}
+              </li>
+            </ul>
+          </article>
+
+          <article
+            v-if="report.interviewTips?.length"
+            class="result-card__panel">
+            <p class="result-card__panel-title">
+              回答建议
+            </p>
+            <ul class="result-card__list">
+              <li
+                v-for="item in report.interviewTips"
+                :key="item">
+                {{ item }}
+              </li>
+            </ul>
+          </article>
+        </div>
+      </div>
+
       <div class="result-card__section">
         <h3>问题列表</h3>
         <div v-if="report.questions?.length" class="result-card__questions">
@@ -110,6 +207,63 @@ defineProps<{
 
 .result-card__section {
   margin-top: 20px;
+}
+
+.result-card__grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.result-card__panel {
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.result-card__panel-title {
+  margin: 0 0 12px;
+  color: var(--app-text);
+  font-weight: 700;
+}
+
+.result-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.result-card__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.result-card__chip--success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.result-card__chip--warning {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+
+.result-card__list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--app-muted);
+  line-height: 1.8;
+}
+
+.result-card__muted {
+  margin: 0;
+  color: var(--app-muted);
+  line-height: 1.7;
 }
 
 .result-card__section h3 {

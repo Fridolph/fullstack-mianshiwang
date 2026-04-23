@@ -838,3 +838,32 @@
 
 - 代码能跑很重要
 - 但“你为什么这样写、以后怎么看得懂”同样重要
+
+---
+
+## 九、登录页样式收敛与 Tailwind 4 使用约定
+
+日期：
+
+- 2026-04-03
+
+这次调整的目标：
+
+- 修复登录面板里 `auth-panel__tabs` 高度异常的问题，让它稳定在 60px 左右并能自适应展示
+- 明确当前前端已经使用 Tailwind CSS 4 + Nuxt UI 的样式链路，不再沿用旧的 Tailwind 3 配置思路
+- 让登录页优先使用 Nuxt UI 组件和 Tailwind 行内类，减少零散样式文件
+
+本次处理：
+
+- `app/assets/css/main.css` 继续作为全局样式入口，保留 `@import "tailwindcss";` 与 `@import "@nuxt/ui";`
+- 删除旧的 `tailwind.config.js`，避免误以为当前还依赖 Tailwind 3 的 `content` 扫描配置
+- `pages/login.vue` 改为以内联 Tailwind 布局为主，只保留页面组合职责
+- `components/auth/AuthCredentialPanel.vue` 里把表单和按钮主要样式改成 Nuxt UI + Tailwind 行内类
+- `auth-panel__tabs` 保留为少量 scoped 样式，因为它涉及固定高度、双列按钮和圆角容器，继续写行内类会明显变得难读
+- `components/auth/AuthBenefitsPanel.vue` 基本改为 Nuxt UI + Tailwind 行内类，移除了原来大段 scoped CSS
+
+后续约定：
+
+- 优先使用 Nuxt UI 组件自带能力和 Tailwind 行内类
+- 当单个元素 class 数量明显过多时，再退回到 `<style scoped>` 写局部样式
+- 只有当多个页面或组件重复出现同一套样式结构时，再考虑提取公共组件或全局 CSS

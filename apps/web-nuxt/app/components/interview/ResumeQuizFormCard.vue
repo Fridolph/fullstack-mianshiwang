@@ -18,12 +18,27 @@ const emit = defineEmits<{
   'update:modelValue': [value: ResumeQuizFormState]
   'analyze': []
   'generate': []
+  'mock-fill': []
+  'parse-resume-file': [file: File]
 }>()
 
 const model = computed({
   get: () => props.modelValue,
   set: (value: ResumeQuizFormState) => emit('update:modelValue', value),
 })
+
+function handleResumeFileChange(event: Event) {
+  const target = event.target as HTMLInputElement | null
+  const file = target?.files?.[0]
+
+  if (file) {
+    emit('parse-resume-file', file)
+  }
+
+  if (target) {
+    target.value = ''
+  }
+}
 </script>
 
 <template>
@@ -34,7 +49,7 @@ const model = computed({
         <h2>填写岗位信息与简历内容</h2>
       </div>
       <p class="section-description">
-        当前后端还没有独立简历模块，所以这里优先支持直接粘贴简历文本，保证前后端链路先跑通。
+        现在支持 mock 快速填充，以及上传 pdf、doc、docx、md 文件读取文本后回填到简历输入框，方便先把体验链路跑通。
       </p>
     </div>
 
@@ -102,7 +117,7 @@ const model = computed({
         <UTextarea
           :model-value="model.resumeContent"
           :rows="12"
-          placeholder="当前优先支持直接粘贴简历文本，这样可以稳定触发简历分析与押题。"
+          placeholder="支持直接粘贴，也支持上传 pdf、doc、docx、md 文件后自动回填文本。"
           @update:model-value="
             model = {
               ...model,
@@ -110,6 +125,27 @@ const model = computed({
             }
           "
         />
+      </label>
+
+      <label class="form-field form-field--full">
+        <span>上传简历文件</span>
+        <div class="interview-form__file-row">
+          <UButton
+            class="relative overflow-hidden"
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-file-up">
+            选择文件
+            <input
+              class="interview-form__file-input"
+              type="file"
+              accept=".pdf,.doc,.docx,.md,text/markdown,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              @change="handleResumeFileChange">
+          </UButton>
+          <span class="interview-form__file-tip">
+            仅做文本提取回填，不会直接创建新对话。
+          </span>
+        </div>
       </label>
 
       <label class="form-field form-field--full">
@@ -123,6 +159,13 @@ const model = computed({
     </div>
 
     <div class="interview-form__actions">
+      <UButton
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-wand-sparkles"
+        @click="emit('mock-fill')">
+        一键填充 mock 信息
+      </UButton>
       <UButton
         color="neutral"
         variant="soft"
@@ -182,6 +225,25 @@ const model = computed({
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 20px;
+}
+
+.interview-form__file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.interview-form__file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.interview-form__file-tip {
+  font-size: 13px;
+  color: var(--app-muted);
 }
 
 @media (max-width: 960px) {

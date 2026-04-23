@@ -2,6 +2,7 @@
 import InterviewServiceCards from '~/components/interview/InterviewServiceCards.vue'
 
 const userStore = useUserStore()
+const freshStartPath = '/interview/start?fresh=1'
 </script>
 
 <template>
@@ -22,7 +23,7 @@ const userStore = useUserStore()
           <UButton
             size="lg"
             icon="i-lucide-sparkles"
-            :to="userStore.isLogin ? '/interview/start' : '/login?redirect=/interview/start'">
+            :to="userStore.isLogin ? freshStartPath : `/login?redirect=${encodeURIComponent(freshStartPath)}`">
             {{ userStore.isLogin ? '开始体验' : '先登录后体验' }}
           </UButton>
           <UButton

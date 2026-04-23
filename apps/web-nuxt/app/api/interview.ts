@@ -4,7 +4,13 @@ import type {
   SseConnection,
   SseRequestOptions,
 } from '~/types/api'
-import type { InterviewMessage } from '~/types/domain'
+import type {
+  ConsumptionRecordDetail,
+  InterviewMessage,
+  ResumeQuizAnswerAnalysisPayload,
+  ResumeQuizFinalEvaluationPayload,
+  ResumeQuizStageTwoJobPayload,
+} from '~/types/domain'
 
 /**
  * 用 fetch 手动实现“POST + SSE”。
@@ -63,37 +69,52 @@ const ssePost = (
       const decoder = new TextDecoder()
       let buffer = ''
 
-      // 服务端按 SSE 协议不断推送 `data: ...\n\n`，这里前端手动按行切片。
+      const emitSseChunk = (chunk: string) => {
+        const normalizedChunk = chunk.replace(/\r/g, '').trim()
+        if (!normalizedChunk) return
+
+        const dataLines = normalizedChunk
+          .split('\n')
+          .filter(line => line.startsWith('data:'))
+          .map(line => line.slice(5).trim())
+
+        if (!dataLines.length) return
+
+        const data = dataLines.join('\n').trim()
+        if (data === '[DONE]') {
+          onComplete?.()
+          return
+        }
+
+        try {
+          onMessage?.(JSON.parse(data) as ResumeQuizProgressEvent)
+        } catch {
+          onMessage?.({
+            type: 'progress',
+            progress: 0,
+            message: data,
+          })
+        }
+      }
+
+      // 服务端按 SSE 协议不断推送 `data: ...\n\n`，这里按完整事件块解析。
       while (true) {
         const { done, value } = await reader.read()
 
         if (done) {
+          if (buffer.trim()) {
+            emitSseChunk(buffer)
+          }
           onComplete?.()
           break
         }
 
         buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
+        const chunks = buffer.split('\n\n')
+        buffer = chunks.pop() || ''
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-
-          const data = line.slice(6).trim()
-          if (data === '[DONE]') {
-            onComplete?.()
-            return
-          }
-
-          try {
-            onMessage?.(JSON.parse(data) as ResumeQuizProgressEvent)
-          } catch {
-            onMessage?.({
-              type: 'progress',
-              progress: 0,
-              message: data,
-            })
-          }
+        for (const chunk of chunks) {
+          emitSseChunk(chunk)
         }
       }
     } catch (error) {
@@ -124,6 +145,7 @@ export const analyzeResumeAPI = (
   return $api('/interview/analyze-resume', {
     method: 'POST',
     body,
+    timeout: 60000,
   })
 }
 
@@ -140,7 +162,107 @@ export const continueConversationAPI = (
   return $api('/interview/continue-conversation', {
     method: 'POST',
     body,
+    timeout: 60000,
   })
+}
+
+export const getConsumptionRecordDetailAPI = (
+  $api: ApiClient,
+  recordId: string,
+) => {
+  return $api(`/interview/records/${recordId}`, {
+    method: 'GET',
+  }) as Promise<ConsumptionRecordDetail>
+}
+
+export const parseResumeFileAPI = (
+  $api: ApiClient,
+  file: File,
+) => {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return $api('/interview/resume/parse-file', {
+    method: 'POST',
+    body: formData,
+  }) as Promise<{
+    text: string
+    estimatedTokens: number
+    warnings: string[]
+  }>
+}
+
+export const getRecordResultAnalysisAPI = (
+  $api: ApiClient,
+  recordId: string,
+) => {
+  return $api(`/interview/records/${recordId}/result-analysis`, {
+    method: 'GET',
+    timeout: 60000,
+  }) as Promise<ResumeQuizAnswerAnalysisPayload | null>
+}
+
+export const createRecordResultAnalysisAPI = (
+  $api: ApiClient,
+  recordId: string,
+  answers: string[],
+) => {
+  return $api(`/interview/records/${recordId}/result-analysis`, {
+    method: 'POST',
+    body: {
+      answers,
+    },
+    timeout: 60000,
+  }) as Promise<ResumeQuizAnswerAnalysisPayload>
+}
+
+export const createStageTwoQuestionsJobAPI = (
+  $api: ApiClient,
+  recordId: string,
+  body: {
+    answers: string[]
+    supplementaryContext?: string
+  },
+) => {
+  return $api(`/interview/records/${recordId}/stage-two-questions`, {
+    method: 'POST',
+    body,
+    timeout: 60000,
+  }) as Promise<ResumeQuizStageTwoJobPayload>
+}
+
+export const getStageTwoQuestionsJobAPI = (
+  $api: ApiClient,
+  recordId: string,
+) => {
+  return $api(`/interview/records/${recordId}/stage-two-questions`, {
+    method: 'GET',
+    timeout: 60000,
+  }) as Promise<ResumeQuizStageTwoJobPayload>
+}
+
+export const createFinalEvaluationJobAPI = (
+  $api: ApiClient,
+  recordId: string,
+  answers: string[],
+) => {
+  return $api(`/interview/records/${recordId}/final-evaluation`, {
+    method: 'POST',
+    body: {
+      answers,
+    },
+    timeout: 60000,
+  }) as Promise<ResumeQuizFinalEvaluationPayload>
+}
+
+export const getFinalEvaluationJobAPI = (
+  $api: ApiClient,
+  recordId: string,
+) => {
+  return $api(`/interview/records/${recordId}/final-evaluation`, {
+    method: 'GET',
+    timeout: 60000,
+  }) as Promise<ResumeQuizFinalEvaluationPayload>
 }
 
 /**

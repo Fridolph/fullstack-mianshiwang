@@ -27,15 +27,21 @@ import {
 import { InjectModel } from '@nestjs/mongoose'
 import { AIModelFactory } from '../../ai/services/ai-model.factory'
 import {
+  OverallEvaluation,
+  QuestionAnswerAnalysis,
   QuestionCategory,
   QuestionDifficulty,
+  RadarDimension,
+  ResumeQuizJobStatus,
   ResumeQuizResult,
   ResumeQuizResultDocument,
 } from '../schemas/interview-quiz-result.schema'
 import { User, UserDocument } from '../../user/schemas/user.schema'
 import {
+  RESUME_QUIZ_ANSWER_ANALYSIS_PROMPT,
   RESUME_QUIZ_PROMPT_ANALYSIS_ONLY,
-  RESUME_QUIZ_PROMPT_QUESTIONS_ONLY,
+  RESUME_QUIZ_PROMPT_STAGE_ONE_QUESTIONS,
+  RESUME_QUIZ_PROMPT_STAGE_TWO_QUESTIONS,
 } from '../prompts/resume-quiz.prompts'
 
 // 进度事件
@@ -57,6 +63,46 @@ interface ResumeQuizExecutionContext {
 interface ResumeQuizStreamHandle {
   stream: Subject<ProgressEvent>
   cancel: () => void
+}
+
+interface GeneratingProgressHandle {
+  stop: () => void
+}
+
+interface ResumeQuizGeneratedQuestions {
+  questions: Array<{
+    question: string
+    answer: string
+    category: QuestionCategory
+    difficulty: QuestionDifficulty
+    tips: string
+    keywords: string[]
+    reasoning: string
+  }>
+  summary: string
+}
+
+export interface ResumeQuizStageTwoJobPayload {
+  recordId: string
+  resultId: string
+  status: ResumeQuizJobStatus
+  jobId?: string
+  questions?: ResumeQuizGeneratedQuestions['questions']
+  cachedAt?: string
+  errorMessage?: string
+}
+
+export interface ResumeQuizFinalEvaluationPayload {
+  recordId: string
+  resultId: string
+  status: ResumeQuizJobStatus
+  jobId?: string
+  userAnswers?: string[]
+  questionAnalyses?: QuestionAnswerAnalysis[]
+  overallEvaluation?: OverallEvaluation
+  radarData?: RadarDimension[]
+  cachedAt?: string
+  errorMessage?: string
 }
 
 class ResumeQuizCancelledError extends Error {
@@ -113,6 +159,22 @@ export class InterviewService {
       }),
     )
 
+  private readonly resumeQuizStageOneQuestionsParser =
+    StructuredOutputParser.fromZodSchema(
+      z.object({
+        questions: z.array(this.resumeQuizQuestionSchema).length(7),
+        summary: z.string(),
+      }),
+    )
+
+  private readonly resumeQuizStageTwoQuestionsParser =
+    StructuredOutputParser.fromZodSchema(
+      z.object({
+        questions: z.array(this.resumeQuizQuestionSchema).length(3),
+        summary: z.string(),
+      }),
+    )
+
   private readonly resumeQuizAnalysisParser =
     StructuredOutputParser.fromZodSchema(
       z.object({
@@ -150,6 +212,41 @@ export class InterviewService {
         strengths: z.array(z.string()).default([]),
         weaknesses: z.array(z.string()).default([]),
         interviewTips: z.array(z.string()).default([]),
+      }),
+    )
+
+  private readonly resumeQuizAnswerAnalysisParser =
+    StructuredOutputParser.fromZodSchema(
+      z.object({
+        questionAnalyses: z.array(
+          z.object({
+            questionIndex: z.number().int().min(0),
+            question: z.string(),
+            userAnswer: z.string(),
+            referenceAnswer: z.string(),
+            score: z.number().min(0).max(100),
+            feedback: z.string(),
+            strengths: z.array(z.string()).default([]),
+            improvements: z.array(z.string()).default([]),
+          }),
+        ),
+        overallEvaluation: z.object({
+          overallScore: z.number().min(0).max(100),
+          summary: z.string(),
+          strengths: z.array(z.string()).default([]),
+          weaknesses: z.array(z.string()).default([]),
+          suggestions: z.array(z.string()).default([]),
+          readiness: z.string().optional().nullable(),
+        }),
+        radarData: z
+          .array(
+            z.object({
+              dimension: z.string(),
+              score: z.number().min(0).max(100),
+              description: z.string().optional().nullable(),
+            }),
+          )
+          .default([]),
       }),
     )
 
@@ -253,6 +350,483 @@ export class InterviewService {
     }
   }
 
+  private normalizeConversationMessages(
+    messages: Array<{ role?: string; content?: string; timestamp?: string }>,
+    fallbackDate?: Date,
+  ) {
+    const baseTime = fallbackDate?.getTime?.() || Date.now()
+
+    return messages
+      .filter(
+        (message): message is {
+          role: string
+          content: string
+          timestamp?: string
+        } =>
+          typeof message?.role === 'string'
+          && message.role !== 'system'
+          && typeof message?.content === 'string'
+          && message.content.trim().length > 0,
+      )
+      .map((message, index) => ({
+        role: message.role,
+        content: message.content,
+        timestamp:
+          typeof message.timestamp === 'string' && message.timestamp
+            ? message.timestamp
+            : new Date(baseTime + index).toISOString(),
+      }))
+  }
+
+  private splitConversationHistory(
+    history: Array<{ role?: string; content?: string }>,
+    fallbackDate?: Date,
+  ) {
+    const visibleMessages = history.filter((item) => item.role !== 'system')
+
+    let analysis: Record<string, unknown> | null = null
+    let conversationMessages = visibleMessages
+
+    if (visibleMessages[1]?.role === 'assistant') {
+      const candidate = this.tryParseAnalysis(visibleMessages[1].content)
+      if (candidate) {
+        analysis = candidate
+        conversationMessages = visibleMessages.slice(2)
+      }
+    }
+
+    return {
+      analysis,
+      messages: this.normalizeConversationMessages(
+        conversationMessages,
+        fallbackDate,
+      ),
+    }
+  }
+
+  private getPersistedConversationSnapshot(record: {
+    createdAt?: Date
+    updatedAt?: Date
+    inputData?: Record<string, any>
+  }) {
+    const fallbackDate = record.updatedAt || record.createdAt
+    const inputData = record.inputData || {}
+
+    const analysis =
+      inputData.analysisSnapshot
+      && typeof inputData.analysisSnapshot === 'object'
+      && !Array.isArray(inputData.analysisSnapshot)
+        ? (inputData.analysisSnapshot as Record<string, unknown>)
+        : null
+
+    const rawMessages = Array.isArray(inputData.conversationMessages)
+      ? inputData.conversationMessages
+      : []
+
+    return {
+      analysis,
+      messages: this.normalizeConversationMessages(rawMessages, fallbackDate),
+    }
+  }
+
+  private buildConversationSnapshotFromSession(
+    sessionId?: string | null,
+    fallbackDate?: Date,
+  ) {
+    if (!sessionId) {
+      return {
+        analysis: null,
+        messages: [],
+      }
+    }
+
+    const history = this.getHistoryMessages(sessionId)
+    return this.splitConversationHistory(history, fallbackDate)
+  }
+
+  async getConsumptionRecordDetail(userId: string, recordId: string) {
+    const record = await this.consumptionRecordModel
+      .findOne({
+        userId,
+        recordId,
+      })
+      .lean()
+
+    if (!record) {
+      throw new NotFoundException('未找到对应的历史记录')
+    }
+
+    const result = record.resultId
+      ? await this.resumeQuizResultModel
+          .findOne({
+            userId,
+            resultId: record.resultId,
+          })
+          .lean()
+      : null
+
+    const sessionId =
+      typeof record.inputData?.sessionId === 'string'
+        ? record.inputData.sessionId
+        : null
+
+    const recordTimestamp = (
+      record as typeof record & {
+        updatedAt?: Date
+      }
+    ).updatedAt
+    const persistedConversation = this.getPersistedConversationSnapshot(record)
+    const liveConversation = this.buildConversationSnapshotFromSession(
+      sessionId,
+      recordTimestamp || record.createdAt,
+    )
+
+    return {
+      record,
+      result: result
+        ? {
+            recordId: record.recordId,
+            resultId: result.resultId,
+            company: result.company,
+            position: result.position,
+            salaryRange: result.salaryRange,
+            jobDescription: result.jobDescription,
+            summary: result.summary,
+            matchScore: result.matchScore,
+            matchLevel: result.matchLevel,
+            matchedSkills: result.matchedSkills,
+            missingSkills: result.missingSkills,
+            knowledgeGaps: result.knowledgeGaps,
+            learningPriorities: this.normalizeLearningPriorities(
+              result.learningPriorities,
+            ),
+            radarData: result.radarData,
+            strengths: result.strengths,
+            weaknesses: result.weaknesses,
+            interviewTips: result.interviewTips,
+            questions: result.questions,
+            totalQuestions: result.totalQuestions,
+            totalPlannedQuestions: result.totalPlannedQuestions,
+            questionPlanVersion: result.questionPlanVersion,
+            questionStage: result.questionStage,
+            stageOneQuestions: result.stageOneQuestions,
+            stageTwoQuestions: result.stageTwoQuestions,
+            userAnswers: result.userAnswers,
+            userAnswersStageOne: result.userAnswersStageOne,
+            userAnswersStageTwo: result.userAnswersStageTwo,
+            stageTwoQuestionStatus: result.stageTwoQuestionStatus,
+            stageTwoQuestionJobId: result.stageTwoQuestionJobId,
+            stageTwoQuestionCachedAt:
+              result.stageTwoQuestionCachedAt?.toISOString(),
+            stageTwoQuestionErrorMessage: result.stageTwoQuestionErrorMessage,
+            finalEvaluationStatus: result.finalEvaluationStatus,
+            finalEvaluationJobId: result.finalEvaluationJobId,
+            finalEvaluationErrorMessage: result.finalEvaluationErrorMessage,
+            questionAnalyses: result.questionAnalyses,
+            overallEvaluation: result.overallEvaluation,
+            answerAnalysisCachedAt:
+              result.answerAnalysisCachedAt?.toISOString(),
+          }
+        : null,
+      conversation: {
+        sessionId,
+        canContinue:
+          Boolean(sessionId) && record.status === ConsumptionStatus.PENDING,
+        analysis: liveConversation.analysis || persistedConversation.analysis,
+        messages: liveConversation.messages.length
+          ? liveConversation.messages
+          : persistedConversation.messages,
+      },
+    }
+  }
+
+  private async getConsumptionRecordWithResult(userId: string, recordId: string) {
+    const record = await this.consumptionRecordModel
+      .findOne({
+        userId,
+        recordId,
+      })
+      .lean()
+
+    if (!record) {
+      throw new NotFoundException('未找到对应的历史记录')
+    }
+
+    const result = record.resultId
+      ? await this.resumeQuizResultModel
+          .findOne({
+            userId,
+            resultId: record.resultId,
+          })
+      : null
+
+    if (!result) {
+      throw new NotFoundException('未找到对应的押题结果')
+    }
+
+    return {
+      record,
+      result,
+    }
+  }
+
+  async getResumeQuizResultAnalysis(userId: string, recordId: string) {
+    const { result } = await this.getConsumptionRecordWithResult(userId, recordId)
+
+    if (
+      !result.questionAnalyses?.length ||
+      !result.overallEvaluation ||
+      !result.userAnswers?.length
+    ) {
+      return null
+    }
+
+    return {
+      recordId,
+      resultId: result.resultId,
+      userAnswers: result.userAnswers,
+      questionAnalyses: result.questionAnalyses,
+      overallEvaluation: result.overallEvaluation,
+      radarData: result.radarData || [],
+      answerAnalysisCachedAt: result.answerAnalysisCachedAt?.toISOString(),
+    }
+  }
+
+  async analyzeResumeQuizResultAnswers(
+    userId: string,
+    recordId: string,
+    answers: string[],
+  ) {
+    const { result } = await this.getConsumptionRecordWithResult(userId, recordId)
+    const normalizedAnswers = this.normalizeUserAnswers(answers)
+    const questionCount = result.questions?.length || 0
+
+    if (!questionCount) {
+      throw new BadRequestException('当前记录还没有可分析的押题结果')
+    }
+
+    if (normalizedAnswers.length !== questionCount) {
+      throw new BadRequestException(`请提交 ${questionCount} 道题对应的完整回答`)
+    }
+
+    const cachedAnswers = this.normalizeUserAnswers(result.userAnswers || [])
+    const hasCachedAnalysis =
+      result.questionAnalyses?.length &&
+      result.overallEvaluation &&
+      cachedAnswers.length === normalizedAnswers.length &&
+      cachedAnswers.every((answer, index) => answer === normalizedAnswers[index])
+
+    if (hasCachedAnalysis) {
+      result.finalEvaluationStatus = ResumeQuizJobStatus.COMPLETED
+      await result.save()
+      return {
+        recordId,
+        resultId: result.resultId,
+        userAnswers: result.userAnswers || normalizedAnswers,
+        questionAnalyses: result.questionAnalyses,
+        overallEvaluation: result.overallEvaluation,
+        radarData: result.radarData || [],
+        answerAnalysisCachedAt: result.answerAnalysisCachedAt?.toISOString(),
+      }
+    }
+
+    const generated = await this.generateResumeQuizAnswerAnalysis(
+      {
+        company: result.company || '未提供',
+        positionName: result.position || '未提供',
+        salaryRange: result.salaryRange || '面议',
+        jd: result.jobDescription || '未提供',
+        resumeContent: result.resumeSnapshot || '未提供',
+        questions: result.questions || [],
+        answers: normalizedAnswers,
+      },
+    )
+
+    const cachedAt = new Date()
+
+    result.userAnswers = normalizedAnswers
+    result.userAnswersStageOne = normalizedAnswers.slice(0, 7)
+    result.userAnswersStageTwo = normalizedAnswers.slice(7)
+    result.questionAnalyses = generated.questionAnalyses
+    result.overallEvaluation = generated.overallEvaluation
+    result.radarData = generated.radarData
+    result.answerAnalysisCachedAt = cachedAt
+    result.finalEvaluationStatus = ResumeQuizJobStatus.COMPLETED
+    result.finalEvaluationErrorMessage = undefined
+    await result.save()
+
+    return {
+      recordId,
+      resultId: result.resultId,
+      userAnswers: normalizedAnswers,
+      questionAnalyses: generated.questionAnalyses,
+      overallEvaluation: generated.overallEvaluation,
+      radarData: generated.radarData,
+      answerAnalysisCachedAt: cachedAt.toISOString(),
+    }
+  }
+
+  async createStageTwoQuestionsJob(
+    userId: string,
+    recordId: string,
+    answers: string[],
+    supplementaryContext?: string,
+  ): Promise<ResumeQuizStageTwoJobPayload> {
+    const { result } = await this.getConsumptionRecordWithResult(userId, recordId)
+    const normalizedAnswers = this.normalizeUserAnswers(answers)
+    const stageOneQuestions = result.stageOneQuestions?.length
+      ? result.stageOneQuestions
+      : (result.questions || []).slice(0, 7)
+
+    if (stageOneQuestions.length !== 7) {
+      throw new BadRequestException('当前记录还没有完整的第 1 阶段题目')
+    }
+
+    if (normalizedAnswers.length !== 7) {
+      throw new BadRequestException('请先完成第 1 阶段 7 道题的回答')
+    }
+
+    const currentStageOneAnswers = this.normalizeUserAnswers(
+      result.userAnswersStageOne || [],
+    )
+    const hasCachedStageTwo =
+      result.stageTwoQuestionStatus === ResumeQuizJobStatus.COMPLETED
+      && (result.stageTwoQuestions?.length || 0) === 3
+      && currentStageOneAnswers.length === normalizedAnswers.length
+      && currentStageOneAnswers.every(
+        (answer, index) => answer === normalizedAnswers[index],
+      )
+
+    if (hasCachedStageTwo) {
+      return this.buildStageTwoQuestionsPayload(recordId, result)
+    }
+
+    const jobId = uuidV4()
+    result.userAnswersStageOne = normalizedAnswers
+    result.userAnswers = [
+      ...normalizedAnswers,
+      ...this.normalizeUserAnswers(result.userAnswersStageTwo || []),
+    ]
+    result.stageTwoQuestions = []
+    result.questions = [...stageOneQuestions]
+    result.totalQuestions = stageOneQuestions.length
+    result.questionStage = 1
+    result.stageTwoQuestionStatus = ResumeQuizJobStatus.QUEUED
+    result.stageTwoQuestionJobId = jobId
+    result.stageTwoQuestionCachedAt = undefined
+    result.stageTwoQuestionErrorMessage = undefined
+    result.finalEvaluationStatus = ResumeQuizJobStatus.IDLE
+    result.finalEvaluationJobId = undefined
+    result.finalEvaluationErrorMessage = undefined
+    result.questionAnalyses = []
+    result.overallEvaluation = undefined
+    result.answerAnalysisCachedAt = undefined
+    await result.save()
+
+    queueMicrotask(() => {
+      void this.runStageTwoQuestionsJob({
+        userId,
+        recordId,
+        resultId: result.resultId,
+        jobId,
+        stageOneAnswers: normalizedAnswers,
+        supplementaryContext,
+      })
+    })
+
+    return this.buildStageTwoQuestionsPayload(recordId, result)
+  }
+
+  async getStageTwoQuestionsJob(
+    userId: string,
+    recordId: string,
+  ): Promise<ResumeQuizStageTwoJobPayload> {
+    const { result } = await this.getConsumptionRecordWithResult(userId, recordId)
+    return this.buildStageTwoQuestionsPayload(recordId, result)
+  }
+
+  async createFinalEvaluationJob(
+    userId: string,
+    recordId: string,
+    answers: string[],
+  ): Promise<ResumeQuizFinalEvaluationPayload> {
+    const { result } = await this.getConsumptionRecordWithResult(userId, recordId)
+    const normalizedAnswers = this.normalizeUserAnswers(answers)
+    const allQuestions = this.getAllQuestions(result)
+
+    if (allQuestions.length !== 10) {
+      throw new BadRequestException('请先完成第 2 阶段题目生成')
+    }
+
+    if (normalizedAnswers.length !== 10) {
+      throw new BadRequestException('请提交全部 10 道题的回答')
+    }
+
+    const currentAnswers = this.normalizeUserAnswers(result.userAnswers || [])
+    const hasCachedFinalEvaluation =
+      result.finalEvaluationStatus === ResumeQuizJobStatus.COMPLETED
+      && result.questionAnalyses?.length === allQuestions.length
+      && result.overallEvaluation
+      && currentAnswers.length === normalizedAnswers.length
+      && currentAnswers.every((answer, index) => answer === normalizedAnswers[index])
+
+    if (hasCachedFinalEvaluation) {
+      return this.buildFinalEvaluationPayload(recordId, result)
+    }
+
+    const jobId = uuidV4()
+    result.userAnswers = normalizedAnswers
+    result.userAnswersStageOne = normalizedAnswers.slice(0, 7)
+    result.userAnswersStageTwo = normalizedAnswers.slice(7)
+    result.finalEvaluationStatus = ResumeQuizJobStatus.QUEUED
+    result.finalEvaluationJobId = jobId
+    result.finalEvaluationErrorMessage = undefined
+    result.questionAnalyses = []
+    result.overallEvaluation = undefined
+    result.answerAnalysisCachedAt = undefined
+    await result.save()
+
+    queueMicrotask(() => {
+      void this.runFinalEvaluationJob({
+        userId,
+        recordId,
+        resultId: result.resultId,
+        jobId,
+        answers: normalizedAnswers,
+      })
+    })
+
+    return this.buildFinalEvaluationPayload(recordId, result)
+  }
+
+  async getFinalEvaluationJob(
+    userId: string,
+    recordId: string,
+  ): Promise<ResumeQuizFinalEvaluationPayload> {
+    const { result } = await this.getConsumptionRecordWithResult(userId, recordId)
+    return this.buildFinalEvaluationPayload(recordId, result)
+  }
+
+  async parseUploadedResume(fileName: string, buffer: Buffer) {
+    const rawText = await this.documentParserService.parseDocumentFromUpload(
+      fileName,
+      buffer,
+    )
+    const cleanedText = this.documentParserService.cleanText(rawText)
+    const validation =
+      this.documentParserService.validateResumeContent(cleanedText)
+
+    if (!validation.isValid) {
+      throw new BadRequestException(validation.reason)
+    }
+
+    return {
+      text: cleanedText,
+      estimatedTokens: this.documentParserService.estimateTokens(cleanedText),
+      warnings: validation.warnings || [],
+    }
+  }
+
   async getResumeQuizRequestStatus(userId: string, requestId: string) {
     const record = await this.consumptionRecordModel
       .findOne({
@@ -315,12 +889,18 @@ export class InterviewService {
       message: result ? '已找到对应结果' : '消费记录已成功，但结果明细不存在',
       result: result
         ? {
+            recordId: record.recordId,
             resultId: result.resultId,
             company: result.company,
             position: result.position,
             salaryRange: result.salaryRange,
             summary: result.summary,
             questions: result.questions,
+            stageOneQuestions: result.stageOneQuestions,
+            stageTwoQuestions: result.stageTwoQuestions,
+            questionStage: result.questionStage,
+            totalQuestions: result.totalQuestions,
+            totalPlannedQuestions: result.totalPlannedQuestions,
             matchScore: result.matchScore,
             matchLevel: result.matchLevel,
             matchedSkills: result.matchedSkills,
@@ -333,6 +913,8 @@ export class InterviewService {
             strengths: result.strengths,
             weaknesses: result.weaknesses,
             interviewTips: result.interviewTips,
+            stageTwoQuestionStatus: result.stageTwoQuestionStatus,
+            finalEvaluationStatus: result.finalEvaluationStatus,
           }
         : null,
     }
@@ -397,6 +979,7 @@ export class InterviewService {
     let consumptionRecord: any = null
     let didConsumeCount = false
     let didCreateResult = false
+    let generatingProgressHandle: GeneratingProgressHandle | null = null
     const recordId = uuidV4()
     const resultId = uuidV4()
 
@@ -430,8 +1013,19 @@ export class InterviewService {
             if (!existingResult) throw new BadRequestException('结果不存在')
 
             const cachedPayload = {
+              recordId: existingRecord.recordId,
               resultId: existingResult.resultId,
               questions: existingResult.questions,
+              stageOneQuestions:
+                existingResult.stageOneQuestions?.length
+                  ? existingResult.stageOneQuestions
+                  : existingResult.questions,
+              stageTwoQuestions: existingResult.stageTwoQuestions || [],
+              questionStage: existingResult.questionStage || 1,
+              totalQuestions: existingResult.totalQuestions,
+              totalPlannedQuestions: existingResult.totalPlannedQuestions || 10,
+              questionPlanVersion:
+                existingResult.questionPlanVersion || 'two-stage-v1',
               summary: existingResult.summary,
               matchScore: existingResult.matchScore,
               matchLevel: existingResult.matchLevel,
@@ -445,7 +1039,12 @@ export class InterviewService {
               strengths: existingResult.strengths,
               weaknesses: existingResult.weaknesses,
               interviewTips: existingResult.interviewTips,
+              stageTwoQuestionStatus: existingResult.stageTwoQuestionStatus,
+              stageTwoQuestionCachedAt:
+                existingResult.stageTwoQuestionCachedAt?.toISOString(),
+              finalEvaluationStatus: existingResult.finalEvaluationStatus,
               remainingCount: await this.getRemainingCount(userId, 'resume'),
+              salaryRange: existingResult.salaryRange,
               consmptionRecordId: existingRecord.recordId,
               isFromCache: true,
             }
@@ -472,6 +1071,7 @@ export class InterviewService {
 
       this.throwIfResumeQuizCancelled(context)
       this.emitProgress(progressSubject, 5, '正在校验请求参数...', 'prepare')
+      this.emitProgress(progressSubject, 10, '正在校验剩余次数...', 'prepare')
 
       // 步骤1 检查并扣除次数（原子操作）
       // 注意：扣费后如果后续步骤失败，会在catch块中自动退款
@@ -497,9 +1097,12 @@ export class InterviewService {
       )
       this.emitProgress(
         progressSubject,
-        20,
-        '已校验剩余次数，开始生成押题...',
+        15,
+        '剩余次数校验通过，准备创建消费记录...',
         'prepare',
+      )
+      const conversationSnapshot = this.buildConversationSnapshotFromSession(
+        dto.sessionId,
       )
 
       // 步骤2 创建消费记录 pending
@@ -518,7 +1121,10 @@ export class InterviewService {
           minSalary: dto.minSalary,
           maxSalary: dto.maxSalary,
           jd: dto.jd,
+          sessionId: dto.sessionId,
           resumeId: dto.resumeId,
+          analysisSnapshot: conversationSnapshot.analysis,
+          conversationMessages: conversationSnapshot.messages,
         },
         resultId, // 结果ID（后面再生成）
         metadata: {
@@ -531,8 +1137,8 @@ export class InterviewService {
       this.logger.log(`消费记录创建成功: recordId=${recordId}`)
       this.emitProgress(
         progressSubject,
-        40,
-        '已创建消费记录，正在生成结果...',
+        20,
+        '已创建消费记录，开始生成押题...',
         'generating',
       )
 
@@ -540,14 +1146,20 @@ export class InterviewService {
       this.logger.log(
         `开始生成简历押题 userId=${userId}, positionName=${dto.positionName}`,
       )
+      generatingProgressHandle = this.startGeneratingProgressTicker(
+        progressSubject,
+        context,
+      )
       const resumeContent = await this.extractResumeContent(userId, dto)
       this.throwIfResumeQuizCancelled(context)
       const salaryRange = this.formatSalaryRange(dto.minSalary, dto.maxSalary)
-      const aiResult = await this.generateResumeQuizResult(
+      const aiResult = await this.generateResumeQuizStageOneResult(
         dto,
         resumeContent,
         salaryRange,
       )
+      generatingProgressHandle.stop()
+      generatingProgressHandle = null
       this.throwIfResumeQuizCancelled(context)
       // 阶段3 保存结果阶段
       // const quizResult =
@@ -560,8 +1172,16 @@ export class InterviewService {
         position: dto.positionName,
         salaryRange,
         jobDescription: dto.jd,
+        resumeSnapshot: resumeContent,
         questions: aiResult?.questions || [],
         totalQuestions: aiResult?.questions?.length || 0,
+        totalPlannedQuestions: 10,
+        questionPlanVersion: 'two-stage-v1',
+        questionStage: 1,
+        stageOneQuestions: aiResult?.questions || [],
+        stageTwoQuestions: [],
+        stageTwoQuestionStatus: ResumeQuizJobStatus.IDLE,
+        finalEvaluationStatus: ResumeQuizJobStatus.IDLE,
         summary: aiResult.summary,
         // AI 生成的分析报告数据
         matchScore: aiResult?.matchScore,
@@ -598,6 +1218,7 @@ export class InterviewService {
             outputData: {
               resultId,
               questionCount: aiResult?.questions?.length || 0,
+              totalPlannedQuestions: 10,
             },
             aiModel: this.getCurrentAiModelName(),
             completedAt: new Date(),
@@ -610,8 +1231,15 @@ export class InterviewService {
       )
 
       const completedPayload = {
+        recordId,
         resultId,
         questions: aiResult?.questions || [],
+        stageOneQuestions: aiResult?.questions || [],
+        stageTwoQuestions: [],
+        totalQuestions: aiResult?.questions?.length || 0,
+        totalPlannedQuestions: 10,
+        questionStage: 1,
+        questionPlanVersion: 'two-stage-v1',
         summary: aiResult?.summary,
         // 匹配度分析
         matchScore: aiResult?.matchScore,
@@ -624,20 +1252,24 @@ export class InterviewService {
         strengths: aiResult?.strengths || [],
         weaknesses: aiResult?.weaknesses || [],
         interviewTips: aiResult?.interviewTips || [],
+        stageTwoQuestionStatus: ResumeQuizJobStatus.IDLE,
+        finalEvaluationStatus: ResumeQuizJobStatus.IDLE,
         salaryRange,
         remainingCount: await this.getRemainingCount(userId, 'resume'),
         consmptionRecordId: recordId,
       }
-      // 发送完成事件
-      this.emitComplete(progressSubject, completedPayload)
       this.emitProgress(
         progressSubject,
-        100,
-        `所有分析完成, 正在保存结果 ... 响应数据为 ${JSON.stringify(completedPayload)}`,
+        90,
+        '结果整理完成，准备返回前端展示...',
+        'saving',
       )
+      // 发送完成事件
+      this.emitComplete(progressSubject, completedPayload)
       return completedPayload
     }
     catch (error) {
+      generatingProgressHandle?.stop()
       const message = error instanceof Error ? error.message : String(error)
       const stack = error instanceof Error ? error.stack : undefined
       const isCancelled = error instanceof ResumeQuizCancelledError
@@ -757,74 +1389,75 @@ ${refundError instanceof Error ? refundError.stack : ''}
     )
   }
 
+  private delay(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
   /**
-   * 生成不同阶段的用户友好提示信息
-   * @returns
+   * 在 AI 真正生成结果期间，补一条连续可见的进度时间线。
+   *
+   * 这里的进度不是“真实百分比”，而是面向用户体验的阶段提示：
+   * - 让前端不会长时间停在 20/40%
+   * - 又不和最终 80/100 的真实保存阶段冲突
    */
-  private async getStagePrompt(
+  private startGeneratingProgressTicker(
     progressSubject: Subject<ProgressEvent> | undefined,
-  ) {
-    if (!progressSubject) return
-    // 定义不同阶段的提示信息
-    const progressMessages = [
-      // 0-20% 理解阶段
-      { progress: 0.05, message: '🤖 AI 正在深度理解您的简历内容...' },
-      { progress: 0.1, message: '📊 AI 正在分析您的技术栈和项目经验...' },
-      { progress: 0.15, message: '🔍 AI 正在识别您的核心竞争力...' },
-      { progress: 0.2, message: '📋 AI 正在对比岗位要求与您的背景...' },
-
-      // 20-50% 设计问题阶段
-      { progress: 0.25, message: '💡 AI 正在设计针对性的技术问题...' },
-      { progress: 0.3, message: '🎯 AI 正在挖掘您简历中的项目亮点...' },
-      { progress: 0.35, message: '🧠 AI 正在构思场景化的面试问题...' },
-      { progress: 0.4, message: '⚡ AI 正在设计不同难度的问题组合...' },
-      { progress: 0.45, message: '🔬 AI 正在分析您的技术深度和广度...' },
-      { progress: 0.5, message: '📝 AI 正在生成基于 STAR 法则的答案...' },
-
-      // 50-70% 优化阶段
-      { progress: 0.55, message: '✨ AI 正在优化问题的表达方式...' },
-      { progress: 0.6, message: '🎨 AI 正在为您准备回答要点和技巧...' },
-      { progress: 0.65, message: '💎 AI 正在提炼您的项目成果和亮点...' },
-      { progress: 0.7, message: '🔧 AI 正在调整问题难度分布...' },
-      // 70-90% 完善阶段
-      { progress: 0.75, message: '📚 AI 正在补充技术关键词和考察点...' },
-      { progress: 0.8, message: '🎓 AI 正在完善综合评估建议...' },
-      { progress: 0.85, message: '🚀 AI 正在做最后的质量检查...' },
-      { progress: 0.9, message: '✅ AI 即将完成问题生成...' },
-    ]
-
-    for (const item of progressMessages) {
-      if (!progressSubject || progressSubject.closed) {
-        this.logger.warn('简历押题流已关闭，停止继续推送进度')
-        return
+    context?: ResumeQuizExecutionContext,
+  ): GeneratingProgressHandle {
+    if (!progressSubject) {
+      return {
+        stop: () => {},
       }
-
-      this.emitProgress(
-        progressSubject,
-        Math.round(item.progress * 100),
-        item.message,
-        'generating',
-      )
-
-      const delay = (ms: number) => {
-        return new Promise((resolve) => setTimeout(resolve, ms))
-      }
-      await delay(1000)
     }
 
-    if (progressSubject && !progressSubject.closed) {
-      progressSubject.next({
-        type: 'complete',
-        progress: 100,
-        label: 'AI 已完成问题生成',
-        message: 'AI 已完成问题生成',
-        stage: 'done',
-        data: {
-          questions: [],
-          analysis: [],
-        },
-      })
-      progressSubject.complete()
+    let stopped = false
+
+    const progressMessages = [
+      { progress: 25, message: 'AI 正在深度理解你的简历内容...' },
+      { progress: 30, message: 'AI 正在分析岗位 JD 与技能匹配度...' },
+      { progress: 35, message: 'AI 正在提炼你的项目亮点与风险点...' },
+      { progress: 45, message: 'AI 正在设计更贴近经历的追问题目...' },
+      { progress: 50, message: 'AI 正在生成题目对应的参考回答...' },
+      { progress: 55, message: 'AI 正在补充关键词与考察意图...' },
+      { progress: 60, message: 'AI 正在优化题目难度分布...' },
+      { progress: 65, message: 'AI 正在整理匹配度分析与学习建议...' },
+      { progress: 70, message: 'AI 正在做最后的内容校验...' },
+      { progress: 75, message: 'AI 即将完成生成，正在收尾...' },
+    ]
+
+    const run = async () => {
+      for (const item of progressMessages) {
+        if (stopped || !progressSubject || progressSubject.closed || context?.cancelled) {
+          return
+        }
+
+        this.emitProgress(
+          progressSubject,
+          item.progress,
+          item.message,
+          'generating',
+        )
+
+        await this.delay(900)
+      }
+
+      while (!stopped && !progressSubject.closed && !context?.cancelled) {
+        this.emitProgress(
+          progressSubject,
+          75,
+          'AI 仍在生成中，请稍候，结果马上返回...',
+          'generating',
+        )
+        await this.delay(5000)
+      }
+    }
+
+    void run()
+
+    return {
+      stop: () => {
+        stopped = true
+      },
     }
   }
 
@@ -882,13 +1515,13 @@ ${refundError instanceof Error ? refundError.stack : ''}
     }
   }
 
-  private async generateResumeQuizResult(
+  private async generateResumeQuizStageOneResult(
     dto: ResumeQuizDto,
     resumeContent: string,
     salaryRange: string,
   ) {
     const questionPrompt = PromptTemplate.fromTemplate(
-      RESUME_QUIZ_PROMPT_QUESTIONS_ONLY,
+      RESUME_QUIZ_PROMPT_STAGE_ONE_QUESTIONS,
     )
     const analysisPrompt = PromptTemplate.fromTemplate(
       RESUME_QUIZ_PROMPT_ANALYSIS_ONLY,
@@ -897,7 +1530,7 @@ ${refundError instanceof Error ? refundError.stack : ''}
     const [questionResult, analysisResult] = await Promise.all([
       questionPrompt
         .pipe(this.aiModelFactory.createCreativeModel())
-        .pipe(this.resumeQuizQuestionsParser)
+        .pipe(this.resumeQuizStageOneQuestionsParser)
         .invoke({
           company: dto.company || '未提供',
           positionName: dto.positionName,
@@ -905,7 +1538,7 @@ ${refundError instanceof Error ? refundError.stack : ''}
           jd: dto.jd,
           resumeContent,
           format_instructions:
-            this.resumeQuizQuestionsParser.getFormatInstructions(),
+            this.resumeQuizStageOneQuestionsParser.getFormatInstructions(),
         }),
       analysisPrompt
         .pipe(this.aiModelFactory.createStableModel())
@@ -924,15 +1557,7 @@ ${refundError instanceof Error ? refundError.stack : ''}
     return {
       ...questionResult,
       ...analysisResult,
-      questions: questionResult.questions.map((item) => ({
-        question: item.question,
-        answer: item.answer,
-        category: this.normalizeQuestionCategory(item.category),
-        difficulty: this.normalizeQuestionDifficulty(item.difficulty),
-        tips: item.tips || '',
-        keywords: item.keywords || [],
-        reasoning: item.reasoning || '',
-      })),
+      questions: this.normalizeGeneratedQuestions(questionResult.questions),
       matchedSkills: analysisResult.matchedSkills.map((item) => ({
         skill: item.skill,
         matched: item.matched,
@@ -944,6 +1569,440 @@ ${refundError instanceof Error ? refundError.stack : ''}
       radarData: analysisResult.radarData.map((item) => ({
         dimension: item.dimension,
         score: item.score,
+        description: item.description || undefined,
+      })),
+    }
+  }
+
+  private async generateResumeQuizStageTwoQuestions(payload: {
+    company: string
+    positionName: string
+    salaryRange: string
+    jd: string
+    resumeContent: string
+    stageOneQuestions: Array<{
+      question: string
+      answer: string
+      category?: string
+      difficulty?: string
+      tips?: string
+      keywords?: string[]
+      reasoning?: string
+    }>
+    stageOneAnswers: string[]
+    supplementaryContext?: string
+  }): Promise<ResumeQuizGeneratedQuestions> {
+    const prompt = PromptTemplate.fromTemplate(
+      RESUME_QUIZ_PROMPT_STAGE_TWO_QUESTIONS,
+    )
+
+    const stageOnePairs = payload.stageOneQuestions.map((question, index) => ({
+      questionIndex: index + 1,
+      question: question.question,
+      referenceAnswer: question.answer,
+      userAnswer: payload.stageOneAnswers[index] || '',
+      tips: question.tips || '',
+    }))
+    const answerQualityNotes = this.buildStageOneAnswerQualityNotes(
+      payload.stageOneQuestions,
+      payload.stageOneAnswers,
+    )
+
+    const generated = await prompt
+      .pipe(this.aiModelFactory.createCreativeModel())
+      .pipe(this.resumeQuizStageTwoQuestionsParser)
+      .invoke({
+        company: payload.company,
+        positionName: payload.positionName,
+        salaryRange: payload.salaryRange,
+        jd: payload.jd,
+        resumeContent: payload.resumeContent,
+        stage_one_pairs: JSON.stringify(stageOnePairs),
+        answer_quality_notes: answerQualityNotes,
+        supplementary_context: this.normalizeSupplementaryContext(
+          payload.supplementaryContext,
+        ),
+        format_instructions:
+          this.resumeQuizStageTwoQuestionsParser.getFormatInstructions(),
+      })
+
+    return {
+      questions: this.normalizeGeneratedQuestions(generated.questions),
+      summary: generated.summary,
+    }
+  }
+
+  private normalizeGeneratedQuestions(
+    questions: Array<{
+      question: string
+      answer: string
+      category?: string
+      difficulty?: string
+      tips?: string | null
+      keywords?: string[]
+      reasoning?: string | null
+    }>,
+  ): ResumeQuizGeneratedQuestions['questions'] {
+    return questions.map((item) => ({
+      question: item.question,
+      answer: item.answer,
+      category: this.normalizeQuestionCategory(item.category),
+      difficulty: this.normalizeQuestionDifficulty(item.difficulty),
+      tips: item.tips || '',
+      keywords: item.keywords || [],
+      reasoning: item.reasoning || '',
+    }))
+  }
+
+  private getAllQuestions(result: ResumeQuizResultDocument | ResumeQuizResult) {
+    const stageOneQuestions = result.stageOneQuestions?.length
+      ? result.stageOneQuestions
+      : (result.questions || []).slice(0, 7)
+    const stageTwoQuestions = result.stageTwoQuestions || []
+
+    return [...stageOneQuestions, ...stageTwoQuestions]
+  }
+
+  private buildStageTwoQuestionsPayload(
+    recordId: string,
+    result: ResumeQuizResultDocument | ResumeQuizResult,
+  ): ResumeQuizStageTwoJobPayload {
+    return {
+      recordId,
+      resultId: result.resultId,
+      status:
+        result.stageTwoQuestionStatus || ResumeQuizJobStatus.IDLE,
+      jobId: result.stageTwoQuestionJobId,
+      questions:
+        result.stageTwoQuestionStatus === ResumeQuizJobStatus.COMPLETED
+          ? (result.stageTwoQuestions || []).map((item) => ({
+              question: item.question,
+              answer: item.answer,
+              category: item.category,
+              difficulty: item.difficulty,
+              tips: item.tips || '',
+              keywords: item.keywords || [],
+              reasoning: item.reasoning || '',
+            }))
+          : [],
+      cachedAt: result.stageTwoQuestionCachedAt?.toISOString(),
+      errorMessage: result.stageTwoQuestionErrorMessage,
+    }
+  }
+
+  private buildFinalEvaluationPayload(
+    recordId: string,
+    result: ResumeQuizResultDocument | ResumeQuizResult,
+  ): ResumeQuizFinalEvaluationPayload {
+    return {
+      recordId,
+      resultId: result.resultId,
+      status:
+        result.finalEvaluationStatus || ResumeQuizJobStatus.IDLE,
+      jobId: result.finalEvaluationJobId,
+      userAnswers: result.userAnswers || [],
+      questionAnalyses:
+        result.finalEvaluationStatus === ResumeQuizJobStatus.COMPLETED
+          ? result.questionAnalyses || []
+          : [],
+      overallEvaluation:
+        result.finalEvaluationStatus === ResumeQuizJobStatus.COMPLETED
+          ? result.overallEvaluation
+          : undefined,
+      radarData:
+        result.finalEvaluationStatus === ResumeQuizJobStatus.COMPLETED
+          ? result.radarData || []
+          : [],
+      cachedAt: result.answerAnalysisCachedAt?.toISOString(),
+      errorMessage: result.finalEvaluationErrorMessage,
+    }
+  }
+
+  private async runStageTwoQuestionsJob(payload: {
+    userId: string
+    recordId: string
+    resultId: string
+    jobId: string
+    stageOneAnswers: string[]
+    supplementaryContext?: string
+  }) {
+    const result = await this.resumeQuizResultModel.findOne({
+      userId: payload.userId,
+      resultId: payload.resultId,
+    })
+
+    if (!result || result.stageTwoQuestionJobId !== payload.jobId) {
+      return
+    }
+
+    try {
+      result.stageTwoQuestionStatus = ResumeQuizJobStatus.RUNNING
+      result.stageTwoQuestionErrorMessage = undefined
+      await result.save()
+
+      const stageOneQuestions = result.stageOneQuestions?.length
+        ? result.stageOneQuestions
+        : (result.questions || []).slice(0, 7)
+
+      const generated = await this.generateResumeQuizStageTwoQuestions({
+        company: result.company || '未提供',
+        positionName: result.position || '未提供',
+        salaryRange: result.salaryRange || '面议',
+        jd: result.jobDescription || '未提供',
+        resumeContent: result.resumeSnapshot || '未提供',
+        stageOneQuestions,
+        stageOneAnswers: payload.stageOneAnswers,
+        supplementaryContext: payload.supplementaryContext,
+      })
+
+      result.stageTwoQuestions = generated.questions
+      result.questions = [...stageOneQuestions, ...generated.questions]
+      result.totalQuestions = result.questions.length
+      result.questionStage = 2
+      result.summary = generated.summary || result.summary
+      result.stageTwoQuestionStatus = ResumeQuizJobStatus.COMPLETED
+      result.stageTwoQuestionCachedAt = new Date()
+      result.stageTwoQuestionErrorMessage = undefined
+      result.finalEvaluationStatus = ResumeQuizJobStatus.IDLE
+      result.finalEvaluationJobId = undefined
+      result.finalEvaluationErrorMessage = undefined
+      result.questionAnalyses = []
+      result.overallEvaluation = undefined
+      result.answerAnalysisCachedAt = undefined
+      await result.save()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.logger.error(
+        `生成第 2 阶段定制题失败: recordId=${payload.recordId}, error=${message}`,
+        error instanceof Error ? error.stack : undefined,
+      )
+
+      result.stageTwoQuestionStatus = ResumeQuizJobStatus.FAILED
+      result.stageTwoQuestionErrorMessage = message
+      await result.save()
+    }
+  }
+
+  private async runFinalEvaluationJob(payload: {
+    userId: string
+    recordId: string
+    resultId: string
+    jobId: string
+    answers: string[]
+  }) {
+    const result = await this.resumeQuizResultModel.findOne({
+      userId: payload.userId,
+      resultId: payload.resultId,
+    })
+
+    if (!result || result.finalEvaluationJobId !== payload.jobId) {
+      return
+    }
+
+    try {
+      result.finalEvaluationStatus = ResumeQuizJobStatus.RUNNING
+      result.finalEvaluationErrorMessage = undefined
+      await result.save()
+
+      const generated = await this.generateResumeQuizAnswerAnalysis({
+        company: result.company || '未提供',
+        positionName: result.position || '未提供',
+        salaryRange: result.salaryRange || '面议',
+        jd: result.jobDescription || '未提供',
+        resumeContent: result.resumeSnapshot || '未提供',
+        questions: this.getAllQuestions(result),
+        answers: payload.answers,
+      })
+
+      result.userAnswers = payload.answers
+      result.userAnswersStageOne = payload.answers.slice(0, 7)
+      result.userAnswersStageTwo = payload.answers.slice(7)
+      result.questionAnalyses = generated.questionAnalyses
+      result.overallEvaluation = generated.overallEvaluation
+      result.radarData = generated.radarData
+      result.answerAnalysisCachedAt = new Date()
+      result.finalEvaluationStatus = ResumeQuizJobStatus.COMPLETED
+      result.finalEvaluationErrorMessage = undefined
+      await result.save()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.logger.error(
+        `生成最终综合评价失败: recordId=${payload.recordId}, error=${message}`,
+        error instanceof Error ? error.stack : undefined,
+      )
+
+      result.finalEvaluationStatus = ResumeQuizJobStatus.FAILED
+      result.finalEvaluationErrorMessage = message
+      await result.save()
+    }
+  }
+
+  private normalizeUserAnswers(answers: string[]) {
+    return answers.map(answer => String(answer || '').trim())
+  }
+
+  private buildStageOneAnswerQualityNotes(
+    questions: Array<{
+      question: string
+      category?: string
+      difficulty?: string
+    }>,
+    answers: string[],
+  ) {
+    const weakSignals = [
+      '不知道',
+      '不清楚',
+      '忘了',
+      '没有',
+      '不会',
+      '放弃',
+      '算了',
+      '开玩笑',
+      '哈哈',
+      '555',
+    ]
+    const actionSignals = [
+      '负责',
+      '实现',
+      '优化',
+      '设计',
+      '重构',
+      '排查',
+      '推动',
+      '落地',
+      '上线',
+      '解决',
+    ]
+    const metricPattern = /\d+(?:\.\d+)?\s*(%|ms|秒|分钟|小时|天|周|月|年|人|次|个|k|w)/i
+
+    const details = questions.map((question, index) => {
+      const answer = String(answers[index] || '').trim()
+      const hasWeakSignal = weakSignals.some(signal => answer.includes(signal))
+      const hasActionSignal = actionSignals.some(signal => answer.includes(signal))
+      const hasMetricSignal = metricPattern.test(answer)
+      const answerLength = answer.length
+
+      let quality = 'medium'
+      let reason = '回答有一定信息量，但还可以继续深挖细节'
+
+      if (!answer || answerLength < 20 || hasWeakSignal) {
+        quality = 'low'
+        reason = '回答偏短、偏虚或存在明显回避信号，更适合做澄清型追问'
+      } else if (answerLength < 80 || (!hasActionSignal && !hasMetricSignal)) {
+        quality = 'low'
+        reason = '回答缺少具体行动或量化结果，应优先追问真实项目细节'
+      } else if (answerLength >= 160 && hasActionSignal && hasMetricSignal) {
+        quality = 'high'
+        reason = '回答较具体，包含行动和结果，可以适当提高问题难度'
+      }
+
+      return {
+        index: index + 1,
+        category: question.category || 'unknown',
+        difficulty: question.difficulty || 'unknown',
+        quality,
+        answerLength,
+        answerPreview: answer.slice(0, 80) || '未作答',
+        reason,
+      }
+    })
+
+    const lowCount = details.filter(item => item.quality === 'low').length
+    const highCount = details.filter(item => item.quality === 'high').length
+    const overallAdvice
+      = lowCount >= 3
+        ? '整体回答质量偏弱，第 2 阶段应以澄清真实项目事实、拆解个人贡献和补齐量化结果为主，不要直接跳到泛化的大型架构题。'
+        : highCount >= 3
+          ? '整体回答较扎实，第 2 阶段可以在保留针对性的前提下适度提高深度和压力。'
+          : '整体回答质量中等，第 2 阶段需要在项目细节追问和岗位关键能力验证之间保持平衡。'
+
+    return JSON.stringify({
+      overallAdvice,
+      lowCount,
+      highCount,
+      details,
+    })
+  }
+
+  private normalizeSupplementaryContext(value?: string) {
+    const normalized = String(value || '').trim()
+    return normalized || '无额外补充说明'
+  }
+
+  private async generateResumeQuizAnswerAnalysis(payload: {
+    company: string
+    positionName: string
+    salaryRange: string
+    jd: string
+    resumeContent: string
+    questions: Array<{
+      question: string
+      answer: string
+    }>
+    answers: string[]
+  }): Promise<{
+    questionAnalyses: QuestionAnswerAnalysis[]
+    overallEvaluation: OverallEvaluation
+    radarData: RadarDimension[]
+  }> {
+    const prompt = PromptTemplate.fromTemplate(
+      RESUME_QUIZ_ANSWER_ANALYSIS_PROMPT,
+    )
+
+    const questionAnswerPairs = payload.questions.map((item, index) => ({
+      questionIndex: index,
+      question: item.question,
+      referenceAnswer: item.answer,
+      userAnswer: payload.answers[index] || '',
+    }))
+
+    const analysisResult = await prompt
+      .pipe(this.aiModelFactory.createStableModel())
+      .pipe(this.resumeQuizAnswerAnalysisParser)
+      .invoke({
+        company: payload.company,
+        positionName: payload.positionName,
+        salaryRange: payload.salaryRange,
+        jd: payload.jd,
+        resumeContent: payload.resumeContent,
+        question_answer_pairs: JSON.stringify(questionAnswerPairs),
+        format_instructions:
+          this.resumeQuizAnswerAnalysisParser.getFormatInstructions(),
+      })
+
+    const indexedAnalyses = new Map(
+      analysisResult.questionAnalyses.map((item, index) => [
+        typeof item.questionIndex === 'number' ? item.questionIndex : index,
+        item,
+      ]),
+    )
+
+    return {
+      questionAnalyses: questionAnswerPairs.map((pair, index) => {
+        const item = indexedAnalyses.get(index)
+
+        return {
+          questionIndex: index,
+          question: item?.question || pair.question,
+          userAnswer: item?.userAnswer || pair.userAnswer,
+          referenceAnswer: item?.referenceAnswer || pair.referenceAnswer,
+          score: Math.round(item?.score ?? 0),
+          feedback: item?.feedback || '本题暂无更多点评，请结合参考答案继续补强。',
+          strengths: item?.strengths || [],
+          improvements: item?.improvements || [],
+        }
+      }),
+      overallEvaluation: {
+        overallScore: Math.round(analysisResult.overallEvaluation.overallScore),
+        summary: analysisResult.overallEvaluation.summary,
+        strengths: analysisResult.overallEvaluation.strengths || [],
+        weaknesses: analysisResult.overallEvaluation.weaknesses || [],
+        suggestions: analysisResult.overallEvaluation.suggestions || [],
+        readiness: analysisResult.overallEvaluation.readiness || undefined,
+      },
+      radarData: (analysisResult.radarData || []).map((item) => ({
+        dimension: item.dimension,
+        score: Math.round(item.score),
         description: item.description || undefined,
       })),
     }
@@ -1115,11 +2174,22 @@ ${refundError instanceof Error ? refundError.stack : ''}
         )
 
         throw new BadRequestException(
-          '简历文件解析失败，您可直接粘贴简历文本，或者上传 pdf 或 docx 文件，且未加密和损坏',
+          '简历文件解析失败，您可直接粘贴简历文本，或者上传 pdf、doc、docx、md 文件，且未加密和损坏',
         )
       }
     }
 
     throw new BadRequestException('请提供简历内容或可访问的简历 URL')
+  }
+
+  private tryParseAnalysis(content?: string) {
+    if (!content) return null
+
+    try {
+      const parsed = JSON.parse(content)
+      return parsed && typeof parsed === 'object' ? parsed : null
+    } catch {
+      return null
+    }
   }
 }

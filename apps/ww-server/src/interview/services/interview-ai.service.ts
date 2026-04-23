@@ -144,9 +144,9 @@ export class InterviewAIService {
         throw new Error('AI 返回的结果中 questions 不是数组')
       }
 
-      if (rawResult.questions.length < 10) {
+      if (rawResult.questions.length < 7) {
         throw new Error(
-          `AI返回的问题数量不足: ${rawResult.questions.length} (当前不足10个问题)`,
+          `AI返回的问题数量不足: ${rawResult.questions.length} (当前不足7个问题)`,
         )
       }
 

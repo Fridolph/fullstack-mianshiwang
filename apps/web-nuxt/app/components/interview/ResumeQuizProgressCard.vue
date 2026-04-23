@@ -1,113 +1,66 @@
 <script setup lang="ts">
 import type { ResumeQuizProgressEvent } from '~/types/api'
 
-defineProps<{
+const props = defineProps<{
   currentProgress: ResumeQuizProgressEvent | null
-  progressLogs: ResumeQuizProgressEvent[]
   errorMessage?: string
 }>()
+
+const stageTextMap: Record<string, string> = {
+  prepare: '准备中',
+  generating: 'AI 生成中',
+  saving: '结果整理中',
+  done: '已完成',
+}
+
+const progressValue = computed(() => props.currentProgress?.progress ?? 0)
+const progressLabel = computed(
+  () => props.currentProgress?.label || '等待开始...',
+)
+const stageLabel = computed(() => {
+  const stage = props.currentProgress?.stage
+  return stage ? stageTextMap[stage] || stage : '待命'
+})
 </script>
 
 <template>
-  <section class="surface-card progress-card">
-    <div class="progress-card__header">
-      <div>
+  <section class="surface-card grid gap-5 p-6">
+    <div class="flex items-start justify-between gap-4">
+      <div class="space-y-3">
         <span class="pill">SSE 流式进度</span>
-        <h2>观察后端事件流</h2>
+        <div class="space-y-2">
+          <h2 class="text-2xl font-semibold text-[color:var(--app-text)]">
+            当前生成进度
+          </h2>
+          <p class="text-sm leading-6 text-[color:var(--app-muted)]">
+            这里只展示当前实时状态，不再堆叠事件队列，方便你一直盯住最新进度。
+          </p>
+        </div>
       </div>
-      <UBadge color="neutral" variant="soft">
-        {{ currentProgress?.progress ?? 0 }}%
+
+      <UBadge color="neutral" variant="soft" size="lg">
+        {{ progressValue }}%
       </UBadge>
     </div>
 
-    <UProgress
-      :model-value="currentProgress?.progress ?? 0"
-      size="xl"
-      class="progress-card__bar"
-    />
+    <UProgress :model-value="progressValue" size="xl" />
 
-    <p class="progress-card__label">
-      {{ currentProgress?.label || '等待开始...' }}
-    </p>
+    <div class="grid gap-3 rounded-2xl border border-[color:var(--app-border)] bg-white/70 p-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm font-semibold text-[color:var(--app-text)]">
+          {{ progressLabel }}
+        </p>
+        <UBadge color="primary" variant="subtle">
+          {{ stageLabel }}
+        </UBadge>
+      </div>
 
-    <p v-if="errorMessage" class="progress-card__error">
-      {{ errorMessage }}
-    </p>
-
-    <div class="progress-card__timeline">
-      <article
-        v-for="(event, index) in progressLogs"
-        :key="`${event.type}-${event.progress}-${index}`"
-        class="progress-card__event">
-        <span>{{ event.progress }}%</span>
-        <p>{{ event.label || event.message || '收到事件' }}</p>
-      </article>
+      <p v-if="errorMessage" class="text-sm leading-6 text-error">
+        {{ errorMessage }}
+      </p>
+      <p v-else class="text-sm leading-6 text-[color:var(--app-muted)]">
+        SSE 有新事件时会实时刷新；如果后端重复返回同一进度，界面会保持稳定，不再重复闪动。
+      </p>
     </div>
   </section>
 </template>
-
-<style scoped>
-.progress-card {
-  padding: 24px;
-}
-
-.progress-card__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.progress-card__header h2 {
-  margin: 16px 0 0;
-  font-size: 24px;
-}
-
-.progress-card__bar {
-  margin-top: 20px;
-}
-
-.progress-card__label {
-  margin: 14px 0 0;
-  color: var(--app-text);
-  font-weight: 600;
-}
-
-.progress-card__error {
-  margin: 12px 0 0;
-  color: #dc2626;
-}
-
-.progress-card__timeline {
-  display: grid;
-  gap: 10px;
-  max-height: 360px;
-  margin-top: 18px;
-  overflow: auto;
-}
-
-.progress-card__event {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.progress-card__event span,
-.progress-card__event p {
-  margin: 0;
-}
-
-.progress-card__event span {
-  color: var(--app-primary);
-  font-weight: 700;
-}
-
-.progress-card__event p {
-  color: var(--app-muted);
-  line-height: 1.6;
-}
-</style>

@@ -1,18 +1,19 @@
 <script setup lang="ts">
 const userStore = useUserStore()
+const freshStartPath = '/interview/start?fresh=1'
 
 const serviceCards = [
   {
     title: '简历分析',
     description: '先根据目标岗位和简历内容拿到结构化分析结果，再决定后面的追问与押题方向。',
     icon: 'i-lucide-file-search-2',
-    to: '/interview/start',
+    to: freshStartPath,
   },
   {
     title: '简历押题',
     description: '通过流式进度观察 AI 工作过程，逐步理解前后端联调和 SSE 交互链路。',
     icon: 'i-lucide-sparkles',
-    to: '/interview/start',
+    to: freshStartPath,
   },
   {
     title: '历史复盘',
@@ -38,7 +39,7 @@ const learnCards = [
 ]
 
 const startPath = computed(() =>
-  userStore.isLogin ? '/interview/start' : '/login?redirect=/interview/start',
+  userStore.isLogin ? freshStartPath : `/login?redirect=${encodeURIComponent(freshStartPath)}`,
 )
 </script>
 

@@ -25,6 +25,17 @@ const registerForm = reactive<RegisterPayload & { confirmPassword: string }>({
   confirmPassword: '',
 })
 
+const modeOptions = [
+  {
+    value: 'login',
+    label: '登录',
+  },
+  {
+    value: 'register',
+    label: '注册',
+  },
+] as const
+
 const panelTitle = computed(() =>
   mode.value === 'login' ? '登录你的学习环境' : '先创建一个本地账号',
 )
@@ -124,10 +135,10 @@ async function handleRegister() {
 </script>
 
 <template>
-  <section class="auth-panel surface-card">
-    <div class="auth-panel__header">
+  <section class="surface-card grid gap-6 p-6 sm:gap-7 sm:p-8 xl:p-9">
+    <div class="grid gap-3">
       <span class="pill">Milestone 2</span>
-      <h2 class="auth-panel__title">
+      <h2 class="section-title mt-1 text-[clamp(2rem,4vw,3.5rem)]">
         {{ panelTitle }}
       </h2>
       <p class="section-description">
@@ -137,35 +148,40 @@ async function handleRegister() {
 
     <div class="auth-panel__tabs">
       <UButton
-        size="lg"
-        :variant="mode === 'login' ? 'solid' : 'soft'"
-        @click="mode = 'login'">
-        登录
-      </UButton>
-      <UButton
-        size="lg"
-        :variant="mode === 'register' ? 'solid' : 'soft'"
-        color="neutral"
-        @click="mode = 'register'">
-        注册
+        v-for="item in modeOptions"
+        :key="item.value"
+        class="auth-panel__tab-button"
+        size="xl"
+        :variant="mode === item.value ? 'solid' : 'soft'"
+        :color="mode === item.value ? 'primary' : 'neutral'"
+        :ui="{
+          base: 'justify-center',
+          label: 'text-base font-semibold'
+        }"
+        @click="mode = item.value">
+        {{ item.label }}
       </UButton>
     </div>
 
-    <div v-if="mode === 'login'" class="auth-panel__form">
-      <label class="auth-field">
-        <span>邮箱</span>
+    <div v-if="mode === 'login'" class="grid gap-4 sm:gap-5">
+      <label class="grid gap-2.5">
+        <span class="text-sm font-semibold text-[color:var(--app-muted)]">邮箱</span>
         <UInput
           v-model="loginForm.email"
+          class="w-full"
+          size="xl"
           type="email"
           placeholder="请输入登录邮箱"
           autocomplete="email"
         />
       </label>
 
-      <label class="auth-field">
-        <span>密码</span>
+      <label class="grid gap-2.5">
+        <span class="text-sm font-semibold text-[color:var(--app-muted)]">密码</span>
         <UInput
           v-model="loginForm.password"
+          class="w-full"
+          size="xl"
           type="password"
           placeholder="请输入密码"
           autocomplete="current-password"
@@ -175,48 +191,57 @@ async function handleRegister() {
 
       <UButton
         block
-        size="lg"
+        size="xl"
         :loading="loading"
         icon="i-lucide-log-in"
+        class="justify-center rounded-2xl"
         @click="handleLogin">
         登录并进入应用
       </UButton>
     </div>
 
-    <div v-else class="auth-panel__form">
-      <label class="auth-field">
-        <span>用户名</span>
+    <div v-else class="grid gap-4 sm:gap-5">
+      <label class="grid gap-2.5">
+        <span class="text-sm font-semibold text-[color:var(--app-muted)]">用户名</span>
         <UInput
           v-model="registerForm.username"
+          class="w-full"
+          size="xl"
           placeholder="至少 3 个字符"
           autocomplete="username"
         />
       </label>
 
-      <label class="auth-field">
-        <span>邮箱</span>
+      <label class="grid gap-2.5">
+        <span class="text-sm font-semibold text-[color:var(--app-muted)]">邮箱</span>
         <UInput
           v-model="registerForm.email"
+          class="w-full"
+          size="xl"
           type="email"
           placeholder="注册邮箱"
           autocomplete="email"
         />
       </label>
 
-      <label class="auth-field">
-        <span>密码</span>
+      <label class="grid gap-2.5">
+        <span class="text-sm font-semibold text-[color:var(--app-muted)]">密码</span>
         <UInput
           v-model="registerForm.password"
+          class="w-full"
+          size="xl"
           type="password"
           placeholder="至少 6 位"
           autocomplete="new-password"
         />
       </label>
 
-      <label class="auth-field">
-        <span>确认密码</span>
+      <label class="grid gap-2.5">
+        <span class="text-sm font-semibold text-[color:var(--app-muted)]">确认密码</span>
         <UInput
           v-model="registerForm.confirmPassword"
+          class="w-full"
+          size="xl"
           type="password"
           placeholder="再次输入密码"
           autocomplete="new-password"
@@ -226,9 +251,10 @@ async function handleRegister() {
 
       <UButton
         block
-        size="lg"
+        size="xl"
         :loading="loading"
         icon="i-lucide-user-plus"
+        class="justify-center rounded-2xl"
         @click="handleRegister">
         注册并自动登录
       </UButton>
@@ -237,54 +263,22 @@ async function handleRegister() {
 </template>
 
 <style scoped>
-.auth-panel {
-  display: grid;
-  gap: 24px;
-  padding: clamp(24px, 4vw, 36px);
-}
-
-.auth-panel__header {
-  display: grid;
-  gap: 12px;
-}
-
-.auth-panel__title {
-  margin: 4px 0 0;
-  font-size: clamp(24px, 4vw, 32px);
-}
-
 .auth-panel__tabs {
-  display: inline-flex;
-  gap: 10px;
-  width: fit-content;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  width: min(100%, 264px);
+  min-height: 60px;
   padding: 6px;
   border: 1px solid var(--app-border);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
-.auth-panel__form {
-  display: grid;
-  gap: 18px;
-}
-
-.auth-field {
-  display: grid;
-  gap: 10px;
-}
-
-.auth-field span {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--app-muted);
-}
-
-.auth-panel :deep(.ui-input) {
-  width: 100%;
-}
-
-.auth-panel :deep(.ui-button) {
-  justify-content: center;
+.auth-panel__tab-button {
+  min-height: 48px;
+  border-radius: 16px;
 }
 </style>

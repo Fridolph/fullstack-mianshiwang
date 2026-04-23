@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import axios from 'axios'
 import * as pdfParser from 'pdf-parse'
 import * as mammoth from 'mammoth'
+import WordExtractor from 'word-extractor'
 
 /**
  * 文档解析服务
@@ -13,7 +14,9 @@ export class DocumentParserService {
   // 支持文件类型 pdf word
   private readonly SUPPORTED_TYPES = {
     PDF: ['.pdf'],
-    DOCX: ['.docx', '.doc'],
+    DOCX: ['.docx'],
+    DOC: ['.doc'],
+    MARKDOWN: ['.md'],
   }
   // 最大文件大小 10MB
   private readonly MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -26,21 +29,7 @@ export class DocumentParserService {
       // 2 下载文件
       const buffer = await this.downloadFile(url)
       // 3. 根据文件类型解析
-      const fileType = this.getFileType(url)
-      let text: string = ''
-
-      switch (fileType) {
-        case 'PDF':
-          text = await this.parsePdf(buffer)
-          break
-        case 'DOCX':
-          text = await this.parseDocx(buffer)
-          break
-        default:
-          throw new BadRequestException(
-            '不支持的文件格式，当前仅支持 pdf、docx',
-          )
-      }
+      const text = await this.parseBufferByFileName(url, buffer)
       this.logger.log(`文档解析成功: 长度 ${text.length} 个字符`)
       return text
     } catch (error) {
@@ -49,8 +38,26 @@ export class DocumentParserService {
     }
   }
 
+  async parseDocumentFromUpload(fileName: string, buffer: Buffer) {
+    if (!fileName) {
+      throw new BadRequestException('文件名不能为空')
+    }
+
+    if (!buffer || buffer.length === 0) {
+      throw new BadRequestException('上传文件为空')
+    }
+
+    if (buffer.length > this.MAX_FILE_SIZE) {
+      throw new BadRequestException('文件过大，当前最多支持 10MB')
+    }
+
+    const text = await this.parseBufferByFileName(fileName, buffer)
+    this.logger.log(`上传文档解析成功: ${fileName}, 长度=${text.length}`)
+    return text
+  }
+
   private validateUrl(url: string) {
-    if (url) throw new BadRequestException('url 地址不能为空')
+    if (!url) throw new BadRequestException('url 地址不能为空')
     try {
       new URL(url)
     } catch {
@@ -68,16 +75,35 @@ export class DocumentParserService {
   /**
    * 获取文件类型
    */
-  private getFileType(url: string): 'PDF' | 'DOCX' | null {
+  private getFileType(url: string): 'PDF' | 'DOCX' | 'DOC' | 'MARKDOWN' | null {
     const urlLower = url.toLowerCase()
     for (const [type, extensions] of Object.entries(this.SUPPORTED_TYPES)) {
       for (const ext of extensions) {
-        if (urlLower.includes(ext)) {
-          return type as 'PDF' | 'DOCX'
+        if (urlLower.endsWith(ext) || urlLower.includes(`${ext}?`)) {
+          return type as 'PDF' | 'DOCX' | 'DOC' | 'MARKDOWN'
         }
       }
     }
     return null
+  }
+
+  private async parseBufferByFileName(fileName: string, buffer: Buffer) {
+    const fileType = this.getFileType(fileName)
+
+    switch (fileType) {
+      case 'PDF':
+        return this.parsePdf(buffer)
+      case 'DOCX':
+        return this.parseDocx(buffer)
+      case 'DOC':
+        return this.parseDoc(buffer)
+      case 'MARKDOWN':
+        return this.parseMarkdown(buffer)
+      default:
+        throw new BadRequestException(
+          '不支持的文件格式，当前仅支持 pdf、doc、docx、md',
+        )
+    }
   }
 
   /**
@@ -205,6 +231,42 @@ export class DocumentParserService {
         `DOCX 文件解析失败: ${error.message} 。请确保文件格式正确且未损坏`,
       )
     }
+  }
+
+  private async parseDoc(buffer: Buffer): Promise<string> {
+    try {
+      this.logger.log('开始解析 DOC 文件')
+      const extractor = new WordExtractor()
+      const document = await extractor.extract(buffer)
+      const text = document.getBody()
+
+      if (!text || text.trim().length === 0) {
+        throw new BadRequestException(
+          'DOC 文件无法提取文本内容，请确认文件未损坏且内容可读取',
+        )
+      }
+
+      this.logger.log(`DOC 解析成功: 长度=${text.length}`)
+      return text
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error
+
+      this.logger.error(`DOC 解析失败: ${error.message}`, error.stack)
+      throw new BadRequestException(
+        `DOC 文件解析失败: ${error.message || '未知错误'}，请确认文件格式正确`,
+      )
+    }
+  }
+
+  private parseMarkdown(buffer: Buffer) {
+    this.logger.log('开始解析 Markdown 文件')
+    const text = buffer.toString('utf-8')
+
+    if (!text.trim()) {
+      throw new BadRequestException('Markdown 文件内容为空')
+    }
+
+    return text
   }
 
   /**

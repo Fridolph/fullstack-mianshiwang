@@ -28,24 +28,8 @@ async function handleSuccess() {
 </script>
 
 <template>
-  <section class="login-page">
+  <section class="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,420px)] lg:gap-7">
     <AuthBenefitsPanel />
     <AuthCredentialPanel @success="handleSuccess" />
   </section>
 </template>
-
-<style scoped>
-.login-page {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 420px);
-  gap: 28px;
-  align-items: stretch;
-}
-
-@media (max-width: 960px) {
-  .login-page {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-}
-</style>

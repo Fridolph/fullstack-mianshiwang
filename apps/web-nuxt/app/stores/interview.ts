@@ -5,6 +5,9 @@ import type {
   InterviewReport,
   InterviewServiceType,
   PositionSelection,
+  ResumeQuizAnswerAnalysisPayload,
+  ResumeQuizJobStatus,
+  ResumeQuizSessionCache,
 } from '~/types/domain'
 
 /**
@@ -39,12 +42,14 @@ interface InterviewState {
   messages: InterviewMessage[]
   resultId: string | null
   sessionId: string | null
+  activeRecordId: string | null
   report: InterviewReport | null
   analysis: Record<string, unknown> | null
   progressLogs: ResumeQuizProgressEvent[]
   currentProgress: ResumeQuizProgressEvent | null
   lastError: string
   quizDraft: ResumeQuizDraft
+  resumeQuizSessions: Record<string, ResumeQuizSessionCache>
 }
 
 export const useInterviewStore = defineStore(
@@ -60,6 +65,7 @@ export const useInterviewStore = defineStore(
       messages: [],
       resultId: null,
       sessionId: null,
+      activeRecordId: null,
       report: null,
       analysis: null,
       progressLogs: [],
@@ -74,6 +80,7 @@ export const useInterviewStore = defineStore(
         resumeContent: '',
         resumeURL: '',
       },
+      resumeQuizSessions: {},
     }),
     getters: {
       resumeType: (state) => {
@@ -84,6 +91,10 @@ export const useInterviewStore = defineStore(
       isInterviewing: state =>
         state.interviewStatus === 'starting'
         || state.interviewStatus === 'in_progress',
+      activeResumeQuizSession: (state) => {
+        if (!state.activeRecordId) return null
+        return state.resumeQuizSessions[state.activeRecordId] || null
+      },
     },
     actions: {
       setSelectedService(service: InterviewServiceType) {
@@ -103,6 +114,9 @@ export const useInterviewStore = defineStore(
         this.sessionId = sessionId
         this.resultId = resultId ?? this.resultId
       },
+      setActiveResumeQuizRecord(recordId: string | null) {
+        this.activeRecordId = recordId
+      },
       // 简历分析接口返回后，把分析结果与会话 ID 一起存起来，方便继续追问。
       setAnalysis(analysis: Record<string, unknown> | null, sessionId?: string | null) {
         this.analysis = analysis
@@ -115,6 +129,28 @@ export const useInterviewStore = defineStore(
       },
       setReport(report: InterviewReport | null) {
         this.report = report
+        const recordId = report?.recordId
+
+        if (!recordId) return
+
+        const currentSession = this.resumeQuizSessions[recordId]
+        this.upsertResumeQuizSession(recordId, {
+          resultId: report.resultId ?? null,
+          report,
+          stageOneAnswerDrafts:
+            currentSession?.stageOneAnswerDrafts?.length
+              ? currentSession.stageOneAnswerDrafts
+              : report.userAnswersStageOne || [],
+          stageTwoAnswerDrafts:
+            currentSession?.stageTwoAnswerDrafts?.length
+              ? currentSession.stageTwoAnswerDrafts
+              : report.userAnswersStageTwo || [],
+          stageTwoStatus: report.stageTwoQuestionStatus || currentSession?.stageTwoStatus || 'idle',
+          finalAnalysisStatus:
+            report.finalEvaluationStatus || currentSession?.finalAnalysisStatus || 'idle',
+          completedAt: new Date().toISOString(),
+        })
+        this.activeRecordId = recordId
       },
       // 表单草稿和 resumeText 保持联动，避免页面和 store 出现“双份状态”。
       setQuizDraft(payload: Partial<ResumeQuizDraft>) {
@@ -126,16 +162,133 @@ export const useInterviewStore = defineStore(
       },
       // 每收到一个 SSE 事件，都顺序写入时间线，同时更新当前进度。
       pushProgressLog(event: ResumeQuizProgressEvent) {
+        const current = this.currentProgress
+        const isSameAsCurrent = Boolean(
+          current
+          && event.type === 'progress'
+          && current.type === event.type
+          && current.progress === event.progress
+          && current.label === event.label
+          && current.message === event.message
+          && current.stage === event.stage,
+        )
+
+        if (isSameAsCurrent) {
+          return
+        }
+
         this.currentProgress = event
-        this.progressLogs.push(event)
+        this.progressLogs = [...this.progressLogs.slice(-11), event]
       },
       setLastError(message: string) {
         this.lastError = message
+      },
+      upsertResumeQuizSession(
+        recordId: string,
+        payload: Partial<Omit<ResumeQuizSessionCache, 'recordId'>>,
+      ) {
+        const currentSession = this.resumeQuizSessions[recordId]
+
+        this.resumeQuizSessions = {
+          ...this.resumeQuizSessions,
+          [recordId]: {
+            recordId,
+            resultId: payload.resultId ?? currentSession?.resultId ?? null,
+            report: payload.report ?? currentSession?.report ?? null,
+            stageOneAnswerDrafts:
+              payload.stageOneAnswerDrafts
+              ?? currentSession?.stageOneAnswerDrafts
+              ?? [],
+            stageTwoAnswerDrafts:
+              payload.stageTwoAnswerDrafts
+              ?? currentSession?.stageTwoAnswerDrafts
+              ?? [],
+            stageTwoSupplementaryContext:
+              payload.stageTwoSupplementaryContext
+              ?? currentSession?.stageTwoSupplementaryContext
+              ?? '',
+            stageTwoStatus:
+              payload.stageTwoStatus
+              ?? currentSession?.stageTwoStatus
+              ?? 'idle',
+            finalAnalysisStatus:
+              payload.finalAnalysisStatus
+              ?? currentSession?.finalAnalysisStatus
+              ?? 'idle',
+            analysisResult:
+              payload.analysisResult ?? currentSession?.analysisResult ?? null,
+            completedAt: payload.completedAt ?? currentSession?.completedAt,
+          },
+        }
+      },
+      setResumeQuizAnswer(
+        recordId: string,
+        stage: 'stageOne' | 'stageTwo',
+        index: number,
+        value: string,
+      ) {
+        const currentSession = this.resumeQuizSessions[recordId]
+        const key
+          = stage === 'stageOne' ? 'stageOneAnswerDrafts' : 'stageTwoAnswerDrafts'
+        const nextDrafts = [...(currentSession?.[key] ?? [])]
+
+        nextDrafts[index] = value
+        this.upsertResumeQuizSession(recordId, {
+          [key]: nextDrafts,
+        })
+      },
+      setStageTwoSupplementaryContext(recordId: string, value: string) {
+        this.upsertResumeQuizSession(recordId, {
+          stageTwoSupplementaryContext: value,
+        })
+      },
+      setStageTwoStatus(recordId: string, status: ResumeQuizJobStatus) {
+        this.upsertResumeQuizSession(recordId, {
+          stageTwoStatus: status,
+        })
+      },
+      setFinalAnalysisStatus(recordId: string, status: ResumeQuizJobStatus) {
+        this.upsertResumeQuizSession(recordId, {
+          finalAnalysisStatus: status,
+        })
+      },
+      setResumeQuizAnalysisResult(
+        recordId: string,
+        analysisResult: ResumeQuizAnswerAnalysisPayload | null,
+      ) {
+        this.upsertResumeQuizSession(recordId, {
+          analysisResult,
+          finalAnalysisStatus: analysisResult ? 'completed' : 'idle',
+        })
       },
       resetProgress() {
         this.progressLogs = []
         this.currentProgress = null
         this.lastError = ''
+      },
+      // 首页 fresh 进入开始页时，只清理当前工作态，不动历史缓存。
+      resetStartPageState() {
+        this.currentStep = 1
+        this.interviewStatus = 'idle'
+        this.selectedPosition = null
+        this.resumeId = null
+        this.resumeText = ''
+        this.messages = []
+        this.resultId = null
+        this.sessionId = null
+        this.activeRecordId = null
+        this.report = null
+        this.analysis = null
+        this.quizDraft = {
+          company: '',
+          positionName: '',
+          minSalary: null,
+          maxSalary: null,
+          jd: '',
+          resumeContent: '',
+          resumeURL: '',
+        }
+        this.resetProgress()
       },
       // 只重置“本次面试运行态”，不清理用户之前在表单里输入的内容。
       resetInterview() {
@@ -143,6 +296,7 @@ export const useInterviewStore = defineStore(
         this.messages = []
         this.resultId = null
         this.sessionId = null
+        this.activeRecordId = null
         this.report = null
         this.analysis = null
         this.resetProgress()
@@ -154,6 +308,7 @@ export const useInterviewStore = defineStore(
         this.selectedPosition = null
         this.resumeId = null
         this.resumeText = ''
+        this.resumeQuizSessions = {}
         this.quizDraft = {
           company: '',
           positionName: '',
@@ -174,9 +329,11 @@ export const useInterviewStore = defineStore(
         'resumeText',
         'resultId',
         'sessionId',
+        'activeRecordId',
         'report',
         'analysis',
         'quizDraft',
+        'resumeQuizSessions',
       ],
     },
   },

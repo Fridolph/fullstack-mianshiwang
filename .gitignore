@@ -4,6 +4,7 @@
 /build
 
 .nx
+.turbo
 # Logs
 logs
 *.log

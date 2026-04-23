@@ -92,6 +92,14 @@ export class ResumeQuizDto {
   resumeURL?: string
 
   @ApiProperty({
+    description: '简历分析会话ID，用于后续从历史记录中继续追问',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  sessionId?: string
+
+  @ApiProperty({
     description: '请求ID（用于幂等性）',
     required: false,
   })

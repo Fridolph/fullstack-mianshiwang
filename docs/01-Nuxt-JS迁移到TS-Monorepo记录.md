@@ -384,6 +384,38 @@ JS -> TS 迁移要点：
 - 进入第 2 步，开始迁移用户与认证基础能力
 - 重点处理登录 API、用户 store、鉴权中间件和登录页实际交互
 
+## 第 1.5 步 - 用 Turbo 接管 Monorepo 开发脚本
+
+日期：
+
+- 2026-04-03
+
+目标：
+
+- 在不拆现有 Nx 配置、不影响前后端业务代码的前提下，把根目录开发脚本切换到 Turbo
+- 让前端和后端都能通过统一的 `dev` 任务被根命令拉起，后续新增第三端时也能直接纳入
+
+修改文件：
+
+- `package.json`
+- `turbo.json`
+- `apps/ww-server/package.json`
+- `.gitignore`
+
+处理方式：
+
+- 根目录新增 `turbo` 依赖，统一由 `turbo run` 编排 `dev`、`build`、`lint`、`test`、`typecheck`
+- 保留原有 `dev:client`、`dev:server` 语义，但改为 Turbo 的 filter 方式，便于只启动单端
+- 给 `apps/ww-server` 补一个标准 `dev` 脚本，让它和 `apps/web-nuxt` 一样可以被 `turbo run dev` 统一调度
+- 新增 `turbo.json`，把 `dev` 设为 `persistent`，并给 `build` / `lint` / `test` / `typecheck` 配置基础任务规则
+- 把 `.turbo` 加入 `.gitignore`，避免本地缓存污染工作区
+
+结果：
+
+- 现在可以直接在根目录执行 `pnpm dev` 同时拉起前后端
+- 如果后续仓库里新增第 3 个应用，只需要在对应包里补一个 `dev` 脚本，Turbo 就会自动把它纳入统一启动
+- 根目录的 `build`、`lint`、`test`、`typecheck` 也都统一到了同一套任务入口，后续更容易维护
+
 ## 第 2 步 - 用户与认证基础能力迁移
 
 日期：

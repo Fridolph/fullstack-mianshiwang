@@ -65,7 +65,7 @@ export interface RegisterPayload extends LoginPayload {
  * - success: 成功
  * - failed: 失败
  */
-export type ConsumptionStatus = 'pending' | 'success' | 'failed'
+export type ConsumptionStatus = 'pending' | 'success' | 'failed' | 'cancelled'
 
 /**
  * 用户服务消费记录。
@@ -159,6 +159,19 @@ export interface InterviewMessage {
   [key: string]: unknown
 }
 
+export interface ConsumptionRecordConversation {
+  sessionId?: string | null
+  canContinue?: boolean
+  analysis?: Record<string, unknown> | null
+  messages: InterviewMessage[]
+}
+
+export interface ConsumptionRecordDetail {
+  record: ConsumptionRecord
+  result: InterviewReport | null
+  conversation: ConsumptionRecordConversation
+}
+
 /**
  * 单个押题问题的数据结构。
  * 如果后端后续补齐真实 AI 结果，这里会成为结果页和练习页最核心的数据模型之一。
@@ -173,6 +186,44 @@ export interface ResumeQuizQuestion {
   reasoning?: string
 }
 
+export interface ResumeQuizQuestionAnalysis {
+  questionIndex: number
+  question: string
+  userAnswer: string
+  referenceAnswer: string
+  feedback: string
+  score: number
+  strengths: string[]
+  improvements: string[]
+}
+
+export interface ResumeQuizRadarDimension {
+  dimension: string
+  score: number
+  description?: string
+}
+
+export interface ResumeQuizOverallEvaluation {
+  overallScore: number
+  summary: string
+  strengths: string[]
+  weaknesses: string[]
+  suggestions: string[]
+  readiness?: string
+}
+
+export type ResumeQuizJobStatus = 'idle' | 'queued' | 'running' | 'completed' | 'failed'
+
+export interface ResumeQuizAnswerAnalysisPayload {
+  recordId: string
+  resultId?: string
+  userAnswers: string[]
+  questionAnalyses: ResumeQuizQuestionAnalysis[]
+  overallEvaluation: ResumeQuizOverallEvaluation
+  radarData: ResumeQuizRadarDimension[]
+  answerAnalysisCachedAt?: string
+}
+
 /**
  * 简历押题 / 结果页 / SSE 完成事件共享的结果载荷。
  *
@@ -182,8 +233,16 @@ export interface ResumeQuizQuestion {
  * - 将来单独的结果详情接口
  */
 export interface ResumeQuizResultPayload {
+  recordId?: string
   resultId?: string
+  salaryRange?: string
   questions: ResumeQuizQuestion[]
+  totalQuestions?: number
+  totalPlannedQuestions?: number
+  questionPlanVersion?: string
+  questionStage?: number
+  stageOneQuestions?: ResumeQuizQuestion[]
+  stageTwoQuestions?: ResumeQuizQuestion[]
   analysis?: string[]
   summary?: string
   matchScore?: number
@@ -200,14 +259,25 @@ export interface ResumeQuizResultPayload {
     priority: string
     reason: string
   }>
-  radarData?: Array<{
-    dimension: string
-    score: number
-    description?: string
-  }>
+  radarData?: ResumeQuizRadarDimension[]
   strengths?: string[]
   weaknesses?: string[]
   interviewTips?: string[]
+  remainingCount?: number
+  isFromCache?: boolean
+  userAnswers?: string[]
+  userAnswersStageOne?: string[]
+  userAnswersStageTwo?: string[]
+  stageTwoQuestionStatus?: ResumeQuizJobStatus
+  stageTwoQuestionJobId?: string
+  stageTwoQuestionCachedAt?: string
+  stageTwoQuestionErrorMessage?: string
+  finalEvaluationStatus?: ResumeQuizJobStatus
+  finalEvaluationJobId?: string
+  finalEvaluationErrorMessage?: string
+  questionAnalyses?: ResumeQuizQuestionAnalysis[]
+  overallEvaluation?: ResumeQuizOverallEvaluation
+  answerAnalysisCachedAt?: string
 }
 
 /**
@@ -218,4 +288,52 @@ export interface InterviewReport extends ResumeQuizResultPayload {
   company?: string
   position?: string
   jobDescription?: string
+}
+
+export interface ResumeQuizSessionCache {
+  recordId: string
+  resultId?: string | null
+  report: InterviewReport | null
+  stageOneAnswerDrafts: string[]
+  stageTwoAnswerDrafts: string[]
+  stageTwoSupplementaryContext: string
+  stageTwoStatus: ResumeQuizJobStatus
+  finalAnalysisStatus: ResumeQuizJobStatus
+  analysisResult: ResumeQuizAnswerAnalysisPayload | null
+  completedAt?: string
+}
+
+export interface ResumeQuizStageTwoJobPayload {
+  recordId: string
+  resultId?: string
+  status: ResumeQuizJobStatus
+  jobId?: string
+  questions?: ResumeQuizQuestion[]
+  cachedAt?: string
+  errorMessage?: string
+}
+
+export interface ResumeQuizFinalEvaluationPayload {
+  recordId: string
+  resultId?: string
+  status: ResumeQuizJobStatus
+  jobId?: string
+  userAnswers?: string[]
+  questionAnalyses?: ResumeQuizQuestionAnalysis[]
+  overallEvaluation?: ResumeQuizOverallEvaluation
+  radarData?: ResumeQuizRadarDimension[]
+  cachedAt?: string
+  errorMessage?: string
+}
+
+export interface ResumeAnalysisViewModel {
+  yearsOfExperience: string
+  recentPosition: string
+  education: string
+  matchScore: string
+  skills: string[]
+  strengths: string[]
+  gaps: string[]
+  suggestions: string[]
+  summary: string
 }

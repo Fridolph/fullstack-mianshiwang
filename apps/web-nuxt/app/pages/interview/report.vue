@@ -8,6 +8,7 @@ definePageMeta({
 })
 
 const interviewStore = useInterviewStore()
+const latestRecordId = computed(() => interviewStore.activeRecordId)
 </script>
 
 <template>
@@ -18,12 +19,18 @@ const interviewStore = useInterviewStore()
         简历押题结果回看
       </h1>
       <p class="section-description">
-        当前结果优先来自本地 store 中最近一次流式完成事件。后续如果后端补齐查询接口，再接入真正的结果详情拉取。
+        这个页面保留为兼容入口。若当前已经拿到 `recordId`，建议直接进入新的独立结果页查看逐题点评。
       </p>
 
       <div class="report-page__actions">
         <UButton icon="i-lucide-arrow-left" to="/interview/start">
           返回继续练习
+        </UButton>
+        <UButton
+          v-if="latestRecordId"
+          icon="i-lucide-file-chart-column"
+          :to="`/history/${latestRecordId}/result`">
+          打开新结果页
         </UButton>
         <UButton color="neutral" variant="soft" to="/history">
           查看历史记录

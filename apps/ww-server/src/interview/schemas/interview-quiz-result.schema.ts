@@ -24,6 +24,14 @@ export enum QuestionCategory {
   SCENARIO = 'scenario', // 场景题
 }
 
+export enum ResumeQuizJobStatus {
+  IDLE = 'idle',
+  QUEUED = 'queued',
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}
+
 @Schema({ _id: false })
 export class InterviewQuestion {
   @Prop({ required: true })
@@ -33,7 +41,7 @@ export class InterviewQuestion {
   answer: string // 参考答案
 
   @Prop({ enum: QuestionCategory, required: true })
-  category: QuestionDifficulty // 问题类别
+  category: QuestionCategory // 问题类别
 
   @Prop({ enum: QuestionDifficulty, required: true })
   difficulty: QuestionDifficulty // 难度
@@ -110,6 +118,58 @@ export class RadarDimension {
   description?: string
 }
 export const RadarDimensionSchema = SchemaFactory.createForClass(RadarDimension)
+
+@Schema({ _id: false })
+export class QuestionAnswerAnalysis {
+  @Prop({ required: true, min: 0 })
+  questionIndex: number
+
+  @Prop({ required: true })
+  question: string
+
+  @Prop({ required: true })
+  userAnswer: string
+
+  @Prop({ required: true })
+  referenceAnswer: string
+
+  @Prop({ required: true, min: 0, max: 100 })
+  score: number
+
+  @Prop({ required: true })
+  feedback: string
+
+  @Prop({ type: [String], default: [] })
+  strengths: string[]
+
+  @Prop({ type: [String], default: [] })
+  improvements: string[]
+}
+export const QuestionAnswerAnalysisSchema =
+  SchemaFactory.createForClass(QuestionAnswerAnalysis)
+
+@Schema({ _id: false })
+export class OverallEvaluation {
+  @Prop({ required: true, min: 0, max: 100 })
+  overallScore: number
+
+  @Prop({ required: true })
+  summary: string
+
+  @Prop({ type: [String], default: [] })
+  strengths: string[]
+
+  @Prop({ type: [String], default: [] })
+  weaknesses: string[]
+
+  @Prop({ type: [String], default: [] })
+  suggestions: string[]
+
+  @Prop()
+  readiness?: string
+}
+export const OverallEvaluationSchema =
+  SchemaFactory.createForClass(OverallEvaluation)
 
 /**
  * 简历押题结果 Schema
@@ -192,6 +252,66 @@ export class ResumeQuizResult {
 
   @Prop({ type: SchemaTypes.Mixed })
   questionDistribution?: Record<string, number> // 问题类型分布
+
+  @Prop({ type: [String], default: [] })
+  userAnswers?: string[]
+
+  @Prop({ type: [QuestionAnswerAnalysisSchema], default: [] })
+  questionAnalyses?: QuestionAnswerAnalysis[]
+
+  @Prop({ type: OverallEvaluationSchema })
+  overallEvaluation?: OverallEvaluation
+
+  @Prop()
+  answerAnalysisCachedAt?: Date
+
+  @Prop({ default: 'two-stage-v1' })
+  questionPlanVersion?: string
+
+  @Prop({ default: 10 })
+  totalPlannedQuestions?: number
+
+  @Prop({ default: 1 })
+  questionStage?: number
+
+  @Prop({ type: [InterviewQuestionSchema], default: [] })
+  stageOneQuestions?: InterviewQuestion[]
+
+  @Prop({ type: [InterviewQuestionSchema], default: [] })
+  stageTwoQuestions?: InterviewQuestion[]
+
+  @Prop({ type: [String], default: [] })
+  userAnswersStageOne?: string[]
+
+  @Prop({ type: [String], default: [] })
+  userAnswersStageTwo?: string[]
+
+  @Prop({
+    enum: ResumeQuizJobStatus,
+    default: ResumeQuizJobStatus.IDLE,
+  })
+  stageTwoQuestionStatus?: ResumeQuizJobStatus
+
+  @Prop()
+  stageTwoQuestionJobId?: string
+
+  @Prop()
+  stageTwoQuestionCachedAt?: Date
+
+  @Prop()
+  stageTwoQuestionErrorMessage?: string
+
+  @Prop({
+    enum: ResumeQuizJobStatus,
+    default: ResumeQuizJobStatus.IDLE,
+  })
+  finalEvaluationStatus?: ResumeQuizJobStatus
+
+  @Prop()
+  finalEvaluationJobId?: string
+
+  @Prop()
+  finalEvaluationErrorMessage?: string
 
   // ================= 用户交互 =================
   @Prop({ default: 0 })
